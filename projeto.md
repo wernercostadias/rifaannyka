@@ -213,21 +213,21 @@ Eventos futuros:
 
 ### Rifas
 
-- `GET /api/raffles/active/`
-- `GET /api/raffles/{id}/`
-- `GET /api/raffles/{id}/numbers/`
+- `GET /api/v1/raffles/active/`
+- `GET /api/v1/raffles/{id}/`
+- `GET /api/v1/raffles/{id}/numbers/`
 
 ### Compras
 
-- `POST /api/purchases/`
-- `GET /api/purchases/{reference}/`
-- `POST /api/purchases/{reference}/cancel-expired/`
+- `POST /api/v1/purchases/`
+- `GET /api/v1/purchases/{reference}/`
+- `POST /api/v1/purchases/{reference}/cancel-expired/`
 
 ### Pagamentos
 
-- `POST /api/payments/`
-- `GET /api/payments/{id}/`
-- `POST /api/payments/webhook/{provider}/`
+- `POST /api/v1/payments/`
+- `GET /api/v1/payments/{id}/`
+- `POST /api/v1/payments/webhook/{provider}/`
 
 ## Fluxo Principal
 
