@@ -1,0 +1,18 @@
+{
+  "name": "rifa-beneficente-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview"
+  },
+  "dependencies": {
+    "@nuxtjs/google-fonts": "^3.2.0",
+    "nuxt": "^3.12.0",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
