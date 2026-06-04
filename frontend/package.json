@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
-    "preview": "nuxt preview"
+    "preview": "nuxt preview",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@nuxtjs/google-fonts": "^3.2.0",
@@ -13,6 +14,7 @@
     "vue": "^3.4.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "wrangler": "^4.19.1"
   }
 }
