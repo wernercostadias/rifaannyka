@@ -16,7 +16,7 @@ const labels: Record<string, string> = {
   canceled: 'Cancelado',
   expired: 'Expirado',
 }
-
+ 
 const label = computed(() => labels[props.status] || props.status)
 </script>
 
