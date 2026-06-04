@@ -3,7 +3,7 @@
   "name": "rifaannyka",
   "main": ".output/server/index.mjs",
   "compatibility_date": "2026-06-04",
-  "compatibility_flags": ["nodejs_compat_v2"],
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": ".output/public",
     "binding": "ASSETS"
