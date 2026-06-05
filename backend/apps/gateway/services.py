@@ -183,33 +183,65 @@ def cancel_payment(payment: Payment) -> Payment:
     return payment
 
 
-def _sync_mercadopago_payment(resource_id: str) -> bool:
-    payment_details = _mercadopago_request(method="GET", path=f"/v1/payments/{resource_id}")
-    external_reference = payment_details.get("external_reference")
-    if not external_reference:
-        return False
+def _mark_payment_as_paid(*, payment: Payment, payment_reference: str) -> bool:
+    if payment.status == Payment.Status.PAID and payment.purchase.status == Purchase.Status.PAID:
+        return True
 
+    confirm_purchase_payment(payment.purchase, payment_reference=payment_reference)
+    payment.status = Payment.Status.PAID
+    payment.paid_at = timezone.now()
+    payment.save(update_fields=["status", "paid_at", "updated_at"])
+    return True
+
+
+def _mark_payment_as_canceled(payment: Payment) -> bool:
+    if payment.status != Payment.Status.CANCELED:
+        payment.status = Payment.Status.CANCELED
+        payment.save(update_fields=["status", "updated_at"])
+    return True
+
+
+def _find_mercadopago_payment(*, order_id: str, external_reference: str) -> Payment | None:
     payment = (
+        Payment.objects.select_related("purchase")
+        .filter(external_id=order_id, provider="mercadopago")
+        .order_by("-created_at")
+        .first()
+    )
+    if payment is not None:
+        return payment
+
+    if not external_reference:
+        return None
+
+    return (
         Payment.objects.select_related("purchase")
         .filter(purchase__reference=external_reference, provider="mercadopago")
         .order_by("-created_at")
         .first()
     )
+
+
+def _sync_mercadopago_order(resource_id: str) -> bool:
+    order_details = _mercadopago_request(method="GET", path=f"/v1/orders/{resource_id}")
+    external_reference = str(order_details.get("external_reference") or "")
+    if not external_reference:
+        return False
+
+    payment = _find_mercadopago_payment(order_id=resource_id, external_reference=external_reference)
     if payment is None:
         return False
 
-    status = payment_details.get("status")
-    if status == "approved":
-        confirm_purchase_payment(payment.purchase, payment_reference=str(resource_id))
-        payment.status = Payment.Status.PAID
-        payment.paid_at = timezone.now()
-        payment.save(update_fields=["status", "paid_at", "updated_at"])
-        return True
+    payment_data = ((order_details.get("transactions") or {}).get("payments") or [{}])[0]
+    status = str(payment_data.get("status") or order_details.get("status") or "").lower()
+    status_detail = str(payment_data.get("status_detail") or order_details.get("status_detail") or "").lower()
+    payment_reference = str(payment_data.get("id") or resource_id)
 
-    if status in {"cancelled", "rejected"}:
-        payment.status = Payment.Status.CANCELED
-        payment.save(update_fields=["status", "updated_at"])
-        return True
+    if status in {"processed", "approved"} or status_detail == "accredited":
+        return _mark_payment_as_paid(payment=payment, payment_reference=payment_reference)
+
+    if status in {"canceled", "cancelled", "rejected"}:
+        return _mark_payment_as_canceled(payment)
 
     return False
 
@@ -236,7 +268,7 @@ def process_webhook(*, provider: str, payload: dict, headers: dict | None = None
 
         resource_id = str((payload.get("data") or {}).get("id") or payload.get("id") or "")
         if resource_id:
-            log.processed = _sync_mercadopago_payment(resource_id)
+            log.processed = _sync_mercadopago_order(resource_id)
             log.save(update_fields=["processed", "updated_at"])
         return log
 

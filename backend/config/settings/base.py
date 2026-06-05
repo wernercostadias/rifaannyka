@@ -7,6 +7,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 ROOT_DIR = BASE_DIR.parent
 
 env = environ.Env(
+    ENVIRONMENT=(str, "local"),
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, []),
     CORS_ALLOWED_ORIGINS=(list, []),
@@ -17,7 +18,7 @@ env = environ.Env(
     MERCADOPAGO_NOTIFICATION_URL=(str, ""),
 )
 
-env_file = ROOT_DIR / ".env"
+env_file = Path(env("ENV_FILE", default=str(ROOT_DIR / ".env")))
 if env_file.exists():
     environ.Env.read_env(env_file)
 

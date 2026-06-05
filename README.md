@@ -2,9 +2,19 @@
 
 Aplicacao web para rifa beneficente com backend Django/DRF e frontend Nuxt/Vue.
 
+## Ambientes
+
+- Use [.env.example](/home/werner/rifa/.env.example:1) como base para desenvolvimento local.
+- Use [.env.production.example](/home/werner/rifa/.env.production.example:1) como referencia das variaveis que precisam existir no EasyPanel.
+- O backend escolhe os settings via `ENVIRONMENT`:
+  - `local` -> `config.settings.local`
+  - `production` -> `config.settings.production`
+- Em producao, prefira configurar as variaveis no painel do EasyPanel em vez de versionar um `.env` real.
+
 ## Backend
 
 ```bash
+cp .env.example .env
 cd backend
 export POETRY_CACHE_DIR=.poetry-cache
 poetry install
@@ -17,6 +27,8 @@ poetry run python manage.py runserver
 
 API local: `http://127.0.0.1:8000/api/v1/`
 
+Se quiser usar Postgres localmente, defina `DATABASE_URL` no `.env`. Se nao definir, o projeto usa SQLite em `backend/db.sqlite3`.
+
 ## Frontend
 
 ```bash
@@ -26,6 +38,24 @@ npm run dev
 ```
 
 App local: `http://localhost:3000/`
+
+## Producao no EasyPanel
+
+Defina estas variaveis no servico da API:
+
+```env
+ENVIRONMENT=production
+SECRET_KEY=...
+DEBUG=False
+ALLOWED_HOSTS=seu-dominio-api
+CORS_ALLOWED_ORIGINS=https://seu-dominio-frontend
+DATABASE_URL=postgres://usuario:senha@host:5432/banco?sslmode=disable
+NUXT_PUBLIC_API_BASE=https://seu-dominio-api/api/v1
+MERCADOPAGO_PUBLIC_KEY=...
+MERCADOPAGO_ACCESS_TOKEN=...
+MERCADOPAGO_WEBHOOK_SECRET=...
+MERCADOPAGO_NOTIFICATION_URL=https://seu-dominio-api/api/v1/payments/webhook/mercadopago/
+```
 
 ## Primeira Rifa
 

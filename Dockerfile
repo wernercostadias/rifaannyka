@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     POETRY_CACHE_DIR=/tmp/poetry-cache \
     POETRY_VIRTUALENVS_CREATE=false \
     POETRY_NO_INTERACTION=1 \
-    DJANGO_SETTINGS_MODULE=config.settings.production \
+    ENVIRONMENT=production \
     PORT=8000
 
 WORKDIR /app/backend

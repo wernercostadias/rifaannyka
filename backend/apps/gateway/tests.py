@@ -1,6 +1,7 @@
 from datetime import timedelta
 import hashlib
 import hmac
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -11,7 +12,7 @@ from apps.rifa.models import Raffle, RaffleNumber
 from apps.rifa.services import activate_raffle
 
 from .models import Payment
-from .services import confirm_payment, create_payment, validate_mercadopago_signature
+from .services import confirm_payment, create_payment, process_webhook, validate_mercadopago_signature
 
 
 class PaymentServiceTests(TestCase):
@@ -94,3 +95,115 @@ class MercadoPagoWebhookSignatureTests(TestCase):
 
         self.assertFalse(is_valid)
         self.assertTrue(metadata["v1_present"])
+
+
+class MercadoPagoWebhookProcessingTests(TestCase):
+    def setUp(self):
+        self.raffle = Raffle.objects.create(
+            title="Rifa da Maria",
+            description="Campanha beneficente",
+            beneficiary_name="Maria",
+            price_per_number=10,
+            total_numbers=10,
+            start_date=timezone.now(),
+            end_date=timezone.now() + timedelta(days=10),
+            draw_date=timezone.now() + timedelta(days=11),
+        )
+        activate_raffle(self.raffle)
+        self.purchase = create_purchase(
+            raffle_id=self.raffle.id,
+            buyer_data={
+                "first_name": "APRO",
+                "last_name": "Teste",
+                "email": "test_user_br@testuser.com",
+                "phone": "91999999999",
+                "cpf": "12345678909",
+            },
+            numbers=[1, 2],
+        )
+        self.payment = Payment.objects.create(
+            purchase=self.purchase,
+            provider="mercadopago",
+            amount=self.purchase.total_amount,
+            external_id="ORD123",
+            status=Payment.Status.PENDING,
+        )
+
+    @patch("apps.gateway.services._mercadopago_request")
+    def test_process_webhook_confirms_paid_order(self, mercadopago_request):
+        mercadopago_request.return_value = {
+            "id": "ORD123",
+            "external_reference": str(self.purchase.reference),
+            "status": "processed",
+            "status_detail": "accredited",
+            "transactions": {
+                "payments": [
+                    {
+                        "id": "PAY123",
+                        "status": "processed",
+                        "status_detail": "accredited",
+                    }
+                ]
+            },
+        }
+        secret = "test-secret"
+        request_id = "req-abc"
+        ts = "1710000000"
+        manifest = "id:ORD123;request-id:req-abc;ts:1710000000;"
+        signature = hmac.new(secret.encode("utf-8"), manifest.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        with self.settings(MERCADOPAGO_WEBHOOK_SECRET=secret):
+            log = process_webhook(
+                provider="mercadopago",
+                payload={"data": {"id": "ORD123"}},
+                headers={
+                    "x-signature": f"ts={ts},v1={signature}",
+                    "x-request-id": request_id,
+                },
+                query_params={"data.id": "ORD123", "type": "order"},
+            )
+
+        self.assertTrue(log.processed)
+        self.purchase.refresh_from_db()
+        self.payment.refresh_from_db()
+        self.assertEqual(self.purchase.status, Purchase.Status.PAID)
+        self.assertEqual(self.purchase.payment_reference, "PAY123")
+        self.assertEqual(self.payment.status, Payment.Status.PAID)
+
+    @patch("apps.gateway.services._mercadopago_request")
+    def test_process_webhook_cancels_rejected_order(self, mercadopago_request):
+        mercadopago_request.return_value = {
+            "id": "ORD123",
+            "external_reference": str(self.purchase.reference),
+            "status": "rejected",
+            "transactions": {
+                "payments": [
+                    {
+                        "id": "PAY123",
+                        "status": "rejected",
+                    }
+                ]
+            },
+        }
+        secret = "test-secret"
+        request_id = "req-abc"
+        ts = "1710000000"
+        manifest = "id:ORD123;request-id:req-abc;ts:1710000000;"
+        signature = hmac.new(secret.encode("utf-8"), manifest.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        with self.settings(MERCADOPAGO_WEBHOOK_SECRET=secret):
+            log = process_webhook(
+                provider="mercadopago",
+                payload={"data": {"id": "ORD123"}},
+                headers={
+                    "x-signature": f"ts={ts},v1={signature}",
+                    "x-request-id": request_id,
+                },
+                query_params={"data.id": "ORD123", "type": "order"},
+            )
+
+        self.assertTrue(log.processed)
+        self.payment.refresh_from_db()
+        self.purchase.refresh_from_db()
+        self.assertEqual(self.payment.status, Payment.Status.CANCELED)
+        self.assertEqual(self.purchase.status, Purchase.Status.RESERVED)
