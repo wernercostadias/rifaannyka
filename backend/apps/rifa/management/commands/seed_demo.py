@@ -8,7 +8,7 @@ from apps.rifa.services import activate_raffle
 
 
 class Command(BaseCommand):
-    help = "Cria uma rifa demo ativa com meta de R$ 2.500,00."
+    help = "Cria uma rifa demo ativa com meta de R$ 3.000,00."
 
     def handle(self, *args, **options):
         now = timezone.now()
@@ -22,9 +22,9 @@ class Command(BaseCommand):
                     "essencial para seus estudos e para o estagio na area do curso "
                     "de especializacao no IEMA."
                 ),
-                "goal_amount": 2500,
+                "goal_amount": 3000,
                 "price_per_number": 5,
-                "total_numbers": 500,
+                "total_numbers": 600,
                 "start_date": now,
                 "end_date": now + timedelta(days=30),
                 "draw_date": now + timedelta(days=31),
