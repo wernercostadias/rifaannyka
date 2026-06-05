@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+.env.*
+.agents
+.codex
+frontend/node_modules
+frontend/.nuxt
+frontend/.output
+backend/.venv
+backend/.poetry-cache
+backend/__pycache__
+backend/db.sqlite3
+**/__pycache__
+*.pyc
+*.pyo

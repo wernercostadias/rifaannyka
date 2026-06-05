@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+backend/.venv/
+backend/.poetry-cache/
 .pytest_cache/
 .mypy_cache/
 .coverage

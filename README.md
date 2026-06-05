@@ -6,14 +6,13 @@ Aplicacao web para rifa beneficente com backend Django/DRF e frontend Nuxt/Vue.
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python manage.py makemigrations
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py seed_demo
-python manage.py runserver
+export POETRY_CACHE_DIR=.poetry-cache
+poetry install
+poetry run python manage.py makemigrations
+poetry run python manage.py migrate
+poetry run python manage.py createsuperuser
+poetry run python manage.py seed_demo
+poetry run python manage.py runserver
 ```
 
 API local: `http://127.0.0.1:8000/api/v1/`
@@ -43,7 +42,8 @@ Ou manualmente:
 3. Use o shell Django para gerar os numeros e ativar:
 
 ```bash
-python manage.py shell
+export POETRY_CACHE_DIR=.poetry-cache
+poetry run python manage.py shell
 ```
 
 ```python
