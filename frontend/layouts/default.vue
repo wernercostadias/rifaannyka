@@ -2,8 +2,10 @@
   <div class="app-shell">
     <header class="site-header">
       <div class="container header-content">
-        <NuxtLink to="/" class="brand">Rifa Beneficente</NuxtLink>
-        <span class="badge">Ajude essa campanha</span>
+        <NuxtLink to="/" class="brand" @click="scrollToTop">Inicio</NuxtLink>
+        <button class="header-action" type="button" @click="openPurchaseLookup">
+          Ver meus numeros
+        </button>
       </div>
     </header>
 
@@ -18,6 +20,18 @@
     </footer>
   </div>
 </template>
+
+<script setup lang="ts">
+function scrollToTop() {
+  if (window.location.pathname === '/') {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+function openPurchaseLookup() {
+  window.dispatchEvent(new CustomEvent('open-purchase-lookup'))
+}
+</script>
 
 <style scoped>
 .app-shell {
@@ -49,13 +63,24 @@
   font-weight: 700;
 }
 
-.badge {
+.header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
   padding: 8px 12px;
   border-radius: var(--radius-pill);
   background: rgba(212, 175, 55, 0.16);
   color: #7c6318;
   font-size: 13px;
   font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.header-action:hover {
+  background: rgba(212, 175, 55, 0.26);
+  transform: translateY(-1px);
 }
 
 main {
@@ -78,7 +103,7 @@ main {
     font-size: 16px;
   }
 
-  .badge {
+  .header-action {
     padding: 6px 10px;
     font-size: 11px;
     text-align: center;

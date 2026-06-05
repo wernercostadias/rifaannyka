@@ -2,7 +2,7 @@
   <div class="container page">
     <RaffleHero :raffle="raffle" @choose="scrollToNumbers" />
 
-    <section ref="numbersSection" class="numbers-section">
+    <section id="numeros" ref="numbersSection" class="numbers-section">
       <div class="ticket-heading">
         <span class="side-mark">⌁</span>
         <h2>Escolha seu número!</h2>
@@ -128,6 +128,56 @@
       </BaseCard>
     </section>
 
+    <BaseModal
+      :open="lookupModalOpen"
+      title="Ver meus numeros"
+      eyebrow="Consulta rápida"
+      @close="lookupModalOpen = false"
+    >
+      <form class="modal-form" @submit.prevent="lookupPurchases">
+        <p class="muted">
+          Digite seu nome completo ou celular para conferir seus números e quando a reserva ou compra foi feita.
+        </p>
+        <BaseInput
+          v-model="lookupQuery"
+          label="Nome completo ou celular"
+          placeholder="Ex.: Ana Silva ou 91999991234"
+          :error="lookupError"
+        />
+
+        <BaseButton :loading="lookupLoading" :disabled="!canLookup" type="submit">
+          Buscar meus números
+        </BaseButton>
+      </form>
+
+      <div v-if="lookupResults.length" class="lookup-results">
+        <article
+          v-for="item in lookupResults"
+          :key="item.reference"
+          class="lookup-card"
+        >
+          <div class="lookup-card__header">
+            <div>
+              <strong>{{ item.buyer_name }}</strong>
+              <p>{{ item.buyer_phone }}</p>
+            </div>
+            <StatusBadge :status="item.status" />
+          </div>
+
+          <p class="lookup-card__numbers">
+            Numeros: {{ formatNumbers(item.numbers) }}
+          </p>
+          <p class="lookup-card__meta">
+            {{ item.status_label }} em {{ formatPurchaseDate(item.created_at) }}
+          </p>
+        </article>
+      </div>
+
+      <p v-else-if="lookupSearched" class="muted lookup-empty">
+        Nenhuma reserva ou compra foi encontrada com esses dados nesta rifa.
+      </p>
+    </BaseModal>
+
     <BaseModal :open="buyerModalOpen" title="Seus dados" eyebrow="2. Identificação" @close="buyerModalOpen = false">
       <form class="modal-form" @submit.prevent="submitPurchase">
         <p class="muted">Esses dados ficam vinculados à sua reserva, sem precisar criar conta.</p>
@@ -216,6 +266,16 @@ type PublicPurchase = {
   created_at: string
 }
 
+type LookupPurchase = {
+  reference: string
+  buyer_name: string
+  buyer_phone: string
+  numbers: number[]
+  status: string
+  status_label: string
+  created_at: string
+}
+
 const api = useApi()
 const { $mercadoPago, $mercadoPagoPublicKey } = useNuxtApp()
 const numbersSection = ref<HTMLElement | null>(null)
@@ -231,9 +291,15 @@ const purchase = ref<any>(null)
 const payment = ref<any>(null)
 const buyerModalOpen = ref(false)
 const paymentModalOpen = ref(false)
+const lookupModalOpen = ref(false)
 const paymentMethod = ref<'pix'>('pix')
 const isMobileNumbers = ref(false)
 const visibleNumberCount = ref(Number.POSITIVE_INFINITY)
+const lookupQuery = ref('')
+const lookupLoading = ref(false)
+const lookupError = ref('')
+const lookupSearched = ref(false)
+const lookupResults = ref<LookupPurchase[]>([])
 const DESKTOP_INITIAL_NUMBERS = 70
 const DESKTOP_LOAD_STEP = 70
 const MOBILE_INITIAL_NUMBERS = 50
@@ -262,14 +328,22 @@ const canSubmit = computed(() => {
   return selectedNumbers.value.length > 0 && buyer.full_name && buyer.phone && buyer.cpf
 })
 
+const canLookup = computed(() => {
+  const query = lookupQuery.value.trim()
+  const digits = query.replace(/\D/g, '')
+  return query.length >= 3 || digits.length >= 4
+})
+
 onMounted(async () => {
   syncNumberViewport()
   window.addEventListener('resize', syncNumberViewport)
+  window.addEventListener('open-purchase-lookup', openPurchaseLookup)
   await loadRaffle()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', syncNumberViewport)
+  window.removeEventListener('open-purchase-lookup', openPurchaseLookup)
 })
 
 async function loadRaffle() {
@@ -299,6 +373,11 @@ async function loadLatestPurchases() {
     return
   }
   latestPurchases.value = await api(`/purchases/latest/?raffle_id=${raffle.value.id}`)
+}
+
+function openPurchaseLookup() {
+  lookupError.value = ''
+  lookupModalOpen.value = true
 }
 
 function scrollToNumbers() {
@@ -370,6 +449,52 @@ async function copyPix() {
   }
 }
 
+async function lookupPurchases() {
+  if (!raffle.value) {
+    return
+  }
+
+  const query = lookupQuery.value.trim()
+  const digits = query.replace(/\D/g, '')
+
+  if (query.length < 3 && digits.length < 4) {
+    lookupError.value = 'Informe pelo menos 3 letras do nome ou 4 digitos do celular.'
+    lookupResults.value = []
+    lookupSearched.value = false
+    return
+  }
+
+  lookupLoading.value = true
+  lookupError.value = ''
+  lookupSearched.value = false
+
+  try {
+    lookupResults.value = await api('/purchases/lookup/', {
+      query: {
+        raffle_id: raffle.value.id,
+        search: query,
+      },
+    })
+    lookupSearched.value = true
+  } catch (error: any) {
+    lookupResults.value = []
+    lookupError.value = error?.data?.search?.[0] || error?.data?.search || 'Nao foi possivel buscar seus numeros agora.'
+  } finally {
+    lookupLoading.value = false
+  }
+}
+
+function formatNumbers(items: number[]) {
+  return items.map((item) => String(item).padStart(3, '0')).join(', ')
+}
+
+function formatPurchaseDate(value: string) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
 function syncNumberViewport() {
   const mobile = window.innerWidth <= 560
   const wasMobile = isMobileNumbers.value
@@ -426,7 +551,7 @@ function showMoreNumbers() {
 }
 
 .ticket-heading h2::before,
-.ticket-heading h2::after {
+.ticket-heading h2 > span::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -439,7 +564,7 @@ function showMoreNumbers() {
   right: calc(100% + 18px);
 }
 
-.ticket-heading h2::after {
+.ticket-heading h2 > span::after {
   left: calc(100% + 18px);
 }
 
@@ -802,6 +927,44 @@ code {
   font-weight: 800;
 }
 
+.lookup-results {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.lookup-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(33, 143, 139, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 14px;
+}
+
+.lookup-card__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lookup-card__header p,
+.lookup-card__numbers,
+.lookup-card__meta,
+.lookup-empty {
+  margin-bottom: 0;
+}
+
+.lookup-card__numbers {
+  color: #17345f;
+  font-weight: 800;
+}
+
+.lookup-card__meta {
+  color: var(--color-muted);
+}
+
 .modal-form {
   display: grid;
   gap: 14px;
@@ -897,7 +1060,8 @@ textarea {
   .section-heading,
   .selection-bar,
   .selection-actions,
-  .latest-item {
+  .latest-item,
+  .lookup-card__header {
     align-items: stretch;
     flex-direction: column;
   }

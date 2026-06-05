@@ -28,12 +28,10 @@
       </div>
 
       <p class="story">
-        Oi, eu me chamo <strong>Ânnyka Yasmin</strong> e estou fazendo esta rifa para
-        pedir a sua ajuda na compra de um <strong>notebook</strong>, que será
-        essencial para os meus estudos e para o meu estágio na área do meu
-        curso de especialização no <strong>IEMA</strong>. Com a sua contribuição,
-        eu vou poder continuar aprendendo, me dedicando e ficando cada vez mais
-        perto de realizar esse sonho.
+        O objetivo desta rifa é alcançar o valor de um <strong>notebook</strong>,
+        equipamento essencial para que <strong>Ânnyka Yasmin</strong> continue os
+        estudos e acompanhe com mais estrutura as atividades do curso de
+        especialização no <strong>IEMA</strong>.
       </p>
     </div>
 
@@ -192,6 +190,17 @@ h1 {
   color: #17345f;
   font-size: 20px;
   line-height: 1.42;
+  text-wrap: pretty;
+}
+
+.story::first-letter {
+  float: left;
+  margin: 1px 6px 0 0;
+  color: #218f8b;
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-size: 1.95em;
+  font-weight: 700;
+  line-height: 0.95;
 }
 
 .story strong {
@@ -618,6 +627,11 @@ blockquote span {
 
   .story {
     font-size: 17px;
+  }
+
+  .story::first-letter {
+    margin-right: 5px;
+    font-size: 1.75em;
   }
 
   .title-raffle {

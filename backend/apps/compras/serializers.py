@@ -103,3 +103,21 @@ class PublicPurchaseSerializer(serializers.ModelSerializer):
 
     def get_numbers(self, obj):
         return list(obj.numbers.order_by("number").values_list("number", flat=True))
+
+
+class PurchaseLookupSerializer(serializers.ModelSerializer):
+    buyer_name = serializers.SerializerMethodField()
+    buyer_phone = serializers.CharField(source="buyer.phone")
+    numbers = serializers.SerializerMethodField()
+    status_label = serializers.CharField(source="get_status_display")
+
+    class Meta:
+        model = Purchase
+        fields = ["reference", "buyer_name", "buyer_phone", "numbers", "status", "status_label", "created_at"]
+
+    def get_buyer_name(self, obj):
+        full_name = f"{obj.buyer.first_name} {obj.buyer.last_name}".strip()
+        return full_name or obj.buyer.first_name
+
+    def get_numbers(self, obj):
+        return list(obj.numbers.order_by("number").values_list("number", flat=True))
