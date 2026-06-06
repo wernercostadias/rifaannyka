@@ -12,5 +12,5 @@ if not database_url:
     )
 
 DATABASES = {
-    "default": env.db(database_url)  # noqa: F405
+    "default": env.db_url_config(database_url)  # noqa: F405
 }
