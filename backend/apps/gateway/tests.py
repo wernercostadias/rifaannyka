@@ -130,7 +130,6 @@ class PaymentServiceTests(TestCase):
         self.assertEqual(kwargs["payload"]["items"][0]["unit_price"], "10.00")
         self.assertEqual(kwargs["payload"]["items"][0]["title"], self.raffle.title)
         self.assertEqual(kwargs["payload"]["items"][0]["external_code"], f"raffle-{self.raffle.id}")
-        self.assertEqual(kwargs["payload"]["items"][0]["unit_measure"], "unit")
         self.assertEqual(kwargs["payload"]["transactions"]["payments"][0]["payment_method"]["statement_descriptor"], "MARIA")
         self.assertNotIn("notification_url", kwargs["payload"])
 

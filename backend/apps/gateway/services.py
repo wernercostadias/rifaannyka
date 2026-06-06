@@ -149,7 +149,6 @@ def _create_mercadopago_pix_payment(*, purchase: Purchase, device_id: str = "") 
                 "external_code": f"raffle-{purchase.raffle_id}",
                 "quantity": quantity,
                 "unit_price": f"{purchase.raffle.price_per_number:.2f}",
-                "unit_measure": "unit",
             }
         ],
         "transactions": {
