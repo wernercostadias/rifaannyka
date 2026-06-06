@@ -371,10 +371,30 @@ const totalAmount = computed(() => {
   return (price * selectedNumbers.value.length).toFixed(2).replace('.', ',')
 })
 
-const visibleNumbers = computed(() => numbers.value.slice(0, visibleNumberCount.value))
+const orderedNumbers = computed(() => {
+  const priorityByStatus: Record<string, number> = {
+    available: 0,
+    reserved: 1,
+    paid: 2,
+    canceled: 3,
+  }
+
+  return [...numbers.value].sort((left, right) => {
+    const leftPriority = priorityByStatus[left.status] ?? 99
+    const rightPriority = priorityByStatus[right.status] ?? 99
+
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority
+    }
+
+    return left.number - right.number
+  })
+})
+
+const visibleNumbers = computed(() => orderedNumbers.value.slice(0, visibleNumberCount.value))
 
 const showLoadMore = computed(() => {
-  return visibleNumberCount.value < numbers.value.length
+  return visibleNumberCount.value < orderedNumbers.value.length
 })
 
 const mercadoPagoReady = computed(() => Boolean($mercadoPago && $mercadoPagoPublicKey))
@@ -766,13 +786,13 @@ function syncNumberViewport() {
   const targetInitialCount = mobile ? MOBILE_INITIAL_NUMBERS : DESKTOP_INITIAL_NUMBERS
 
   if (visibleNumberCount.value === Number.POSITIVE_INFINITY || mobile !== wasMobile) {
-    visibleNumberCount.value = Math.min(targetInitialCount, numbers.value.length || targetInitialCount)
+    visibleNumberCount.value = Math.min(targetInitialCount, orderedNumbers.value.length || targetInitialCount)
   }
 }
 
 function showMoreNumbers() {
   const step = isMobileNumbers.value ? MOBILE_LOAD_STEP : DESKTOP_LOAD_STEP
-  visibleNumberCount.value = Math.min(visibleNumberCount.value + step, numbers.value.length)
+  visibleNumberCount.value = Math.min(visibleNumberCount.value + step, orderedNumbers.value.length)
 }
 </script>
 
