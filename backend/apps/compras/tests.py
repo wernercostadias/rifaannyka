@@ -1,10 +1,15 @@
 from datetime import timedelta
+from io import StringIO
+from unittest.mock import patch
 
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
+from apps.gateway.models import Payment
+from apps.gateway.services import confirm_payment
 from apps.rifa.models import Raffle, RaffleNumber
 from apps.rifa.services import activate_raffle
 
@@ -142,3 +147,96 @@ class PurchaseLookupApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("search", response.data)
+
+
+class ExpireStalePurchasesCommandTests(TestCase):
+    def setUp(self):
+        self.raffle = Raffle.objects.create(
+            title="Rifa da Maria",
+            description="Campanha beneficente",
+            beneficiary_name="Maria",
+            price_per_number=10,
+            total_numbers=10,
+            start_date=timezone.now(),
+            end_date=timezone.now() + timedelta(days=10),
+            draw_date=timezone.now() + timedelta(days=11),
+        )
+        activate_raffle(self.raffle)
+
+    @patch("apps.compras.management.commands.expire_stale_purchases.refresh_payment_status")
+    def test_command_expires_stale_reserved_purchase_without_paid_status(self, refresh_payment_status_mock):
+        purchase = create_purchase(
+            raffle_id=self.raffle.id,
+            buyer_data={
+                "first_name": "Ana",
+                "last_name": "Silva",
+                "email": "ana@example.com",
+                "phone": "91999999999",
+                "cpf": "12345678909",
+            },
+            numbers=[1, 2],
+        )
+        purchase.reservation_expires_at = timezone.now() - timedelta(minutes=1)
+        purchase.save(update_fields=["reservation_expires_at"])
+
+        Payment.objects.create(
+            purchase=purchase,
+            provider="mercadopago",
+            amount=purchase.total_amount,
+            status=Payment.Status.PENDING,
+            external_id="ORD123",
+        )
+        refresh_payment_status_mock.side_effect = lambda current_payment: current_payment
+
+        output = StringIO()
+        call_command("expire_stale_purchases", stdout=output)
+
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.status, Purchase.Status.EXPIRED)
+        self.assertEqual(
+            RaffleNumber.objects.filter(raffle=self.raffle, number__in=[1, 2], status=RaffleNumber.Status.AVAILABLE).count(),
+            2,
+        )
+        self.assertIn("compras expiradas: 1", output.getvalue().lower())
+
+    @patch("apps.compras.management.commands.expire_stale_purchases.refresh_payment_status")
+    def test_command_keeps_purchase_paid_when_sync_confirms_payment(self, refresh_payment_status_mock):
+        purchase = create_purchase(
+            raffle_id=self.raffle.id,
+            buyer_data={
+                "first_name": "Bruno",
+                "last_name": "Souza",
+                "email": "bruno@example.com",
+                "phone": "91988887777",
+                "cpf": "98765432100",
+            },
+            numbers=[3, 4],
+        )
+        purchase.reservation_expires_at = timezone.now() - timedelta(minutes=1)
+        purchase.save(update_fields=["reservation_expires_at"])
+
+        payment = Payment.objects.create(
+            purchase=purchase,
+            provider="mercadopago",
+            amount=purchase.total_amount,
+            status=Payment.Status.PENDING,
+            external_id="ORD456",
+        )
+
+        def sync_as_paid(current_payment):
+            return confirm_payment(current_payment)
+
+        refresh_payment_status_mock.side_effect = sync_as_paid
+
+        output = StringIO()
+        call_command("expire_stale_purchases", stdout=output)
+
+        purchase.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(purchase.status, Purchase.Status.PAID)
+        self.assertEqual(payment.status, Payment.Status.PAID)
+        self.assertEqual(
+            RaffleNumber.objects.filter(raffle=self.raffle, number__in=[3, 4], status=RaffleNumber.Status.PAID).count(),
+            2,
+        )
+        self.assertIn("compras confirmadas: 1", output.getvalue().lower())

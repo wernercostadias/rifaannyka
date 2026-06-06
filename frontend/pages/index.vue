@@ -181,9 +181,36 @@
     <BaseModal :open="buyerModalOpen" title="Seus dados" eyebrow="2. Identificação" @close="buyerModalOpen = false">
       <form class="modal-form" @submit.prevent="submitPurchase">
         <p class="muted">Esses dados ficam vinculados à sua reserva, sem precisar criar conta.</p>
-        <BaseInput v-model="buyer.full_name" label="Nome completo" />
-        <BaseInput v-model="buyer.phone" label="Celular" placeholder="(91) 99999-9999" />
-        <BaseInput v-model="buyer.cpf" label="CPF" placeholder="000.000.000-00" />
+        <BaseInput
+          :model-value="buyer.full_name"
+          label="Nome completo"
+          name="full_name"
+          autocomplete="name"
+          :error="buyerErrors.full_name"
+          @update:model-value="updateBuyerFullName"
+        />
+        <BaseInput
+          :model-value="buyer.phone"
+          label="Celular"
+          name="phone"
+          placeholder="(91) 99999-9999"
+          inputmode="tel"
+          autocomplete="tel"
+          :maxlength="15"
+          :error="buyerErrors.phone"
+          @update:model-value="updateBuyerPhone"
+        />
+        <BaseInput
+          :model-value="buyer.cpf"
+          label="CPF"
+          name="cpf"
+          placeholder="000.000.000-00"
+          inputmode="numeric"
+          autocomplete="off"
+          :maxlength="14"
+          :error="buyerErrors.cpf"
+          @update:model-value="updateBuyerCpf"
+        />
 
         <div class="modal-summary">
           <span>Números: {{ selectedNumbers.join(', ') }}</span>
@@ -372,7 +399,16 @@ const paymentStatusMessage = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  return selectedNumbers.value.length > 0 && buyer.full_name && buyer.phone && buyer.cpf && mercadoPagoReady.value
+  return (
+    selectedNumbers.value.length > 0 &&
+    buyer.full_name.trim() &&
+    buyer.phone &&
+    buyer.cpf &&
+    !buyerErrors.value.full_name &&
+    !buyerErrors.value.phone &&
+    !buyerErrors.value.cpf &&
+    mercadoPagoReady.value
+  )
 })
 
 const canLookup = computed(() => {
@@ -382,6 +418,12 @@ const canLookup = computed(() => {
 })
 
 let paymentStatusInterval: ReturnType<typeof setInterval> | null = null
+
+const buyerErrors = computed(() => ({
+  full_name: validateFullName(buyer.full_name),
+  phone: validatePhone(buyer.phone),
+  cpf: validateCpf(buyer.cpf),
+}))
 
 onMounted(async () => {
   syncNumberViewport()
@@ -451,6 +493,111 @@ function toggleNumber(number: number) {
     return
   }
   selectedNumbers.value = [...selectedNumbers.value, number].sort((a, b) => a - b)
+}
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, '')
+}
+
+function formatPhone(value: string) {
+  const digits = onlyDigits(value).slice(0, 11)
+  if (digits.length <= 2) {
+    return digits.length ? `(${digits}` : ''
+  }
+  if (digits.length <= 7) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+  }
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+}
+
+function formatCpf(value: string) {
+  const digits = onlyDigits(value).slice(0, 11)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`
+}
+
+function validateFullName(value: string) {
+  const normalized = value.trim().replace(/\s+/g, ' ')
+  if (!normalized) {
+    return ''
+  }
+  const parts = normalized.split(' ')
+  if (parts.length < 2) {
+    return 'Informe nome e sobrenome.'
+  }
+  if (parts.some((part) => part.length < 2)) {
+    return 'Cada parte do nome deve ter pelo menos 2 letras.'
+  }
+  return ''
+}
+
+function validatePhone(value: string) {
+  const digits = onlyDigits(value)
+  if (!digits) {
+    return ''
+  }
+  if (digits.length !== 11) {
+    return 'Informe um celular com DDD e 11 digitos.'
+  }
+  if (digits[2] !== '9') {
+    return 'Informe um celular valido com nono digito.'
+  }
+  return ''
+}
+
+function isValidCpfDigits(digits: string) {
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
+    return false
+  }
+
+  let sum = 0
+  for (let index = 0; index < 9; index += 1) {
+    sum += Number(digits[index]) * (10 - index)
+  }
+  let remainder = (sum * 10) % 11
+  if (remainder === 10) remainder = 0
+  if (remainder !== Number(digits[9])) {
+    return false
+  }
+
+  sum = 0
+  for (let index = 0; index < 10; index += 1) {
+    sum += Number(digits[index]) * (11 - index)
+  }
+  remainder = (sum * 10) % 11
+  if (remainder === 10) remainder = 0
+  return remainder === Number(digits[10])
+}
+
+function validateCpf(value: string) {
+  const digits = onlyDigits(value)
+  if (!digits) {
+    return ''
+  }
+  if (digits.length !== 11) {
+    return 'Informe um CPF com 11 digitos.'
+  }
+  if (!isValidCpfDigits(digits)) {
+    return 'Informe um CPF valido.'
+  }
+  return ''
+}
+
+function updateBuyerFullName(value: string) {
+  buyer.full_name = value.replace(/\s+/g, ' ').replace(/^\s+/, '')
+}
+
+function updateBuyerPhone(value: string) {
+  buyer.phone = formatPhone(value)
+}
+
+function updateBuyerCpf(value: string) {
+  buyer.cpf = formatCpf(value)
 }
 
 async function submitPurchase() {

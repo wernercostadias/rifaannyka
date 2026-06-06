@@ -66,6 +66,19 @@ Se quiser popular a rifa demo no deploy, defina `RUN_SEED_DEMO=true`. Como o com
 `seed_demo` atualiza a rifa demo existente, deixe essa variavel como `false` depois da
 primeira carga se nao quiser sobrescrever os dados da rifa demo em todo deploy.
 
+### Cron para reservas vencidas
+
+Para liberar reservas vencidas automaticamente no EasyPanel, crie um segundo servico
+no mesmo projeto usando o arquivo `Dockerfile.cron`.
+
+- Nome sugerido: `annyka-cron`
+- Dockerfile: `Dockerfile.cron`
+- Mesmo conjunto de variaveis do backend/API
+- Sem dominio publico
+
+Esse servico executa `python manage.py expire_stale_purchases` a cada minuto e,
+antes de expirar a reserva, tenta sincronizar pagamentos pendentes com o Mercado Pago.
+
 ## Primeira Rifa
 
 Para criar uma rifa demo com 200 numeros:
