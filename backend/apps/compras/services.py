@@ -70,6 +70,22 @@ def expire_purchase(purchase: Purchase) -> Purchase:
     return purchase
 
 
+def release_purchase(purchase: Purchase, *, status: str = Purchase.Status.CANCELED) -> Purchase:
+    if purchase.status != Purchase.Status.RESERVED:
+        return purchase
+
+    with transaction.atomic():
+        purchase = Purchase.objects.select_for_update().get(id=purchase.id)
+        raffle_numbers = list(purchase.numbers.select_for_update())
+        for raffle_number in raffle_numbers:
+            if raffle_number.status == RaffleNumber.Status.RESERVED:
+                raffle_number.status = RaffleNumber.Status.AVAILABLE
+        RaffleNumber.objects.bulk_update(raffle_numbers, ["status", "updated_at"])
+        purchase.status = status
+        purchase.save(update_fields=["status", "updated_at"])
+    return purchase
+
+
 def confirm_purchase_payment(purchase: Purchase, payment_reference: str = "") -> Purchase:
     with transaction.atomic():
         purchase = Purchase.objects.select_for_update().get(id=purchase.id)

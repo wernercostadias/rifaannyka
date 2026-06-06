@@ -32,11 +32,16 @@ export default defineNuxtPlugin(async () => {
   }
 
   let instance: unknown = null
+  let loadError: string | null = null
 
   if (publicKey) {
-    await loadScript()
-    if (window.MercadoPago) {
-      instance = new window.MercadoPago(publicKey)
+    try {
+      await loadScript()
+      if (window.MercadoPago) {
+        instance = new window.MercadoPago(publicKey)
+      }
+    } catch (error) {
+      loadError = error instanceof Error ? error.message : 'Falha ao carregar MercadoPago.js'
     }
   }
 
@@ -44,6 +49,7 @@ export default defineNuxtPlugin(async () => {
     provide: {
       mercadoPago: instance,
       mercadoPagoPublicKey: publicKey,
+      mercadoPagoLoadError: loadError,
     },
   }
 })

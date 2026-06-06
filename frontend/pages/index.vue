@@ -210,7 +210,7 @@
       </div>
 
       <p v-if="!mercadoPagoReady" class="payment-warning">
-        Mercado Pago.js ainda não foi inicializado. Verifique a `MERCADOPAGO_PUBLIC_KEY` no ambiente.
+        {{ mercadoPagoErrorMessage }}
       </p>
 
       <div v-if="purchase" class="payment-box">
@@ -277,7 +277,7 @@ type LookupPurchase = {
 }
 
 const api = useApi()
-const { $mercadoPago, $mercadoPagoPublicKey } = useNuxtApp()
+const { $mercadoPago, $mercadoPagoPublicKey, $mercadoPagoLoadError } = useNuxtApp()
 const numbersSection = ref<HTMLElement | null>(null)
 const raffle = ref<Raffle | null>(null)
 const numbers = ref<RaffleNumber[]>([])
@@ -323,9 +323,15 @@ const showLoadMore = computed(() => {
 })
 
 const mercadoPagoReady = computed(() => Boolean($mercadoPago && $mercadoPagoPublicKey))
+const mercadoPagoErrorMessage = computed(() => {
+  if ($mercadoPagoLoadError) {
+    return 'Nao foi possivel carregar o Mercado Pago. Tente novamente em instantes.'
+  }
+  return 'Mercado Pago.js ainda nao foi inicializado. Verifique a NUXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY no ambiente.'
+})
 
 const canSubmit = computed(() => {
-  return selectedNumbers.value.length > 0 && buyer.full_name && buyer.phone && buyer.cpf
+  return selectedNumbers.value.length > 0 && buyer.full_name && buyer.phone && buyer.cpf && mercadoPagoReady.value
 })
 
 const canLookup = computed(() => {
@@ -401,7 +407,7 @@ async function submitPurchase() {
   errorMessage.value = ''
   payment.value = null
   try {
-    purchase.value = await api('/purchases/', {
+    const response = await api('/purchases/', {
       method: 'POST',
       body: {
         raffle_id: raffle.value.id,
@@ -411,21 +417,24 @@ async function submitPurchase() {
           cpf: buyer.cpf,
         },
         numbers: selectedNumbers.value,
+        payment_provider: 'mercadopago',
       },
     })
+    purchase.value = response.purchase
+    payment.value = response.payment
     buyerModalOpen.value = false
     paymentModalOpen.value = true
     await Promise.all([loadNumbers(), loadLatestPurchases()])
     selectedNumbers.value = []
   } catch (error) {
-    errorMessage.value = 'Não foi possível reservar esses números.'
+    errorMessage.value = 'Nao foi possivel iniciar o pagamento. Nenhum numero foi reservado.'
   } finally {
     submitting.value = false
   }
 }
 
 async function createPixPayment() {
-  if (!purchase.value) {
+  if (!purchase.value || payment.value) {
     return
   }
 

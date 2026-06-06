@@ -4,9 +4,12 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
+from apps.gateway.serializers import PaymentSerializer
+from apps.gateway.services import create_payment
+
 from .models import Purchase
 from .serializers import PublicPurchaseSerializer, PurchaseCreateSerializer, PurchaseLookupSerializer, PurchaseSerializer
-from .services import expire_purchase
+from .services import expire_purchase, release_purchase
 
 
 class PurchaseViewSet(GenericViewSet):
@@ -22,7 +25,27 @@ class PurchaseViewSet(GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         purchase = serializer.save()
-        return Response(PurchaseSerializer(purchase).data, status=status.HTTP_201_CREATED)
+        payment_provider = (serializer.validated_data.get("payment_provider") or "").strip()
+
+        if not payment_provider:
+            return Response(PurchaseSerializer(purchase).data, status=status.HTTP_201_CREATED)
+
+        try:
+            payment = create_payment(purchase=purchase, provider=payment_provider)
+        except ValidationError:
+            release_purchase(purchase)
+            raise
+        except Exception:
+            release_purchase(purchase)
+            raise ValidationError({"payment": "Nao foi possivel iniciar o pagamento agora."})
+
+        return Response(
+            {
+                "purchase": PurchaseSerializer(purchase).data,
+                "payment": PaymentSerializer(payment).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     def retrieve(self, request, reference=None):
         purchase = self.get_object()

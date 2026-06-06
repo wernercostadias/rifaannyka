@@ -121,6 +121,71 @@ def test_create_purchase_endpoint_creates_reserved_purchase(api_client, active_r
 
 
 @pytest.mark.django_db
+def test_create_purchase_endpoint_can_create_payment_together(api_client, active_raffle):
+    with patch("apps.gateway.services._mercadopago_request") as mercadopago_request:
+        mercadopago_request.return_value = {
+            "id": "ORD123",
+            "transactions": {
+                "payments": [
+                    {
+                        "payment_method": {
+                            "qr_code_base64": "base64-qr",
+                            "qr_code": "pix-code",
+                        }
+                    }
+                ]
+            },
+        }
+        response = api_client.post(
+            "/api/v1/purchases/",
+            {
+                "raffle_id": active_raffle.id,
+                "buyer": {
+                    "full_name": "Bruno Souza",
+                    "phone": "91988887777",
+                    "cpf": "98765432100",
+                },
+                "numbers": [3, 4],
+                "payment_provider": "mercadopago",
+            },
+            format="json",
+        )
+
+    assert response.status_code == 201
+    assert response.data["purchase"]["status"] == Purchase.Status.RESERVED
+    assert response.data["payment"]["status"] == Payment.Status.PENDING
+    assert response.data["payment"]["qr_code_text"] == "pix-code"
+
+
+@pytest.mark.django_db
+def test_create_purchase_endpoint_releases_numbers_if_payment_fails(api_client, active_raffle):
+    with patch("apps.gateway.services._mercadopago_request", side_effect=Exception("boom")):
+        response = api_client.post(
+            "/api/v1/purchases/",
+            {
+                "raffle_id": active_raffle.id,
+                "buyer": {
+                    "full_name": "Bruno Souza",
+                    "phone": "91988887777",
+                    "cpf": "98765432100",
+                },
+                "numbers": [3, 4],
+                "payment_provider": "mercadopago",
+            },
+            format="json",
+        )
+
+    assert response.status_code == 400
+    assert response.data["payment"] == "Nao foi possivel iniciar o pagamento agora."
+    purchase = Purchase.objects.get(buyer__cpf="98765432100")
+    assert purchase.status == Purchase.Status.CANCELED
+    statuses = list(
+        RaffleNumber.objects.filter(raffle=active_raffle, number__in=[3, 4]).values_list("status", flat=True)
+    )
+    assert statuses == [RaffleNumber.Status.AVAILABLE, RaffleNumber.Status.AVAILABLE]
+
+
+@pytest.mark.django_db
 def test_retrieve_purchase_endpoint_returns_purchase(api_client, reserved_purchase):
     response = api_client.get(f"/api/v1/purchases/{reserved_purchase.reference}/")
 
