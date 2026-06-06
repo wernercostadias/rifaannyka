@@ -78,7 +78,7 @@ class PurchaseServiceTests(TestCase):
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data["first_name"], "Ana")
         self.assertEqual(serializer.validated_data["last_name"], "Maria Silva")
-        self.assertEqual(serializer.validated_data["email"], "comprador-12345678909@rifa.local")
+        self.assertEqual(serializer.validated_data["email"], "comprador-12345678909@testuser.com")
 
 
 class PurchaseLookupApiTests(TestCase):

@@ -36,7 +36,7 @@ class BuyerSerializer(serializers.ModelSerializer):
         email = (attrs.get("email") or "").strip()
         if not email:
             cpf_digits = "".join(char for char in attrs.get("cpf", "") if char.isdigit())
-            attrs["email"] = f"comprador-{cpf_digits}@rifa.local"
+            attrs["email"] = f"comprador-{cpf_digits}@testuser.com"
 
         return attrs
 
