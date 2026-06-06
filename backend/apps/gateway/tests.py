@@ -61,6 +61,76 @@ class PaymentServiceTests(TestCase):
             2,
         )
 
+    @patch("apps.gateway.services.time.sleep", return_value=None)
+    @patch("apps.gateway.services._mercadopago_request")
+    def test_create_mercadopago_payment_fetches_order_when_post_response_has_no_qr(
+        self,
+        mercadopago_request,
+        _sleep,
+    ):
+        mercadopago_request.side_effect = [
+            {
+                "id": "ORD123",
+                "transactions": {
+                    "payments": [
+                        {
+                            "id": "PAY123",
+                            "payment_method": {
+                                "qr_code": "",
+                                "qr_code_base64": "",
+                            },
+                        }
+                    ]
+                },
+            },
+            {
+                "id": "ORD123",
+                "transactions": {
+                    "payments": [
+                        {
+                            "id": "PAY123",
+                            "payment_method": {
+                                "qr_code": "pix-code",
+                                "qr_code_base64": "base64-qr",
+                            },
+                        }
+                    ]
+                },
+            },
+        ]
+
+        payment = create_payment(purchase=self.purchase, provider="mercadopago")
+
+        self.assertEqual(payment.external_id, "ORD123")
+        self.assertEqual(payment.qr_code_text, "pix-code")
+        self.assertEqual(payment.qr_code, "base64-qr")
+
+    @patch("apps.gateway.services._mercadopago_request")
+    def test_create_mercadopago_payment_sends_items_descriptor_and_device_id(self, mercadopago_request):
+        mercadopago_request.return_value = {
+            "id": "ORD123",
+            "transactions": {
+                "payments": [
+                    {
+                        "id": "PAY123",
+                        "payment_method": {
+                            "qr_code": "pix-code",
+                            "qr_code_base64": "base64-qr",
+                        },
+                    }
+                ]
+            },
+        }
+
+        create_payment(purchase=self.purchase, provider="mercadopago", device_id="device-123")
+
+        kwargs = mercadopago_request.call_args.kwargs
+        self.assertEqual(kwargs["extra_headers"]["X-meli-session-id"], "device-123")
+        self.assertEqual(kwargs["payload"]["items"][0]["quantity"], 2)
+        self.assertEqual(kwargs["payload"]["items"][0]["unit_price"], 10.0)
+        self.assertEqual(kwargs["payload"]["items"][0]["title"], self.raffle.title)
+        self.assertIn("statement_descriptor", kwargs["payload"])
+
 
 class MercadoPagoWebhookSignatureTests(TestCase):
     def test_validate_mercadopago_signature(self):

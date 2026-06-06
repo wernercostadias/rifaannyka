@@ -1,7 +1,9 @@
 import json
 import hmac
 import hashlib
+import time
 import uuid
+import re
 from urllib import error, request
 
 from django.conf import settings
@@ -18,7 +20,13 @@ from .models import Payment, PaymentWebhookLog
 MERCADOPAGO_API_BASE = "https://api.mercadopago.com"
 
 
-def _mercadopago_request(*, method: str, path: str, payload: dict | None = None) -> dict:
+def _mercadopago_request(
+    *,
+    method: str,
+    path: str,
+    payload: dict | None = None,
+    extra_headers: dict | None = None,
+) -> dict:
     if not settings.MERCADOPAGO_ACCESS_TOKEN:
         raise ValidationError("MERCADOPAGO_ACCESS_TOKEN nao configurado.")
 
@@ -27,6 +35,8 @@ def _mercadopago_request(*, method: str, path: str, payload: dict | None = None)
         "Authorization": f"Bearer {settings.MERCADOPAGO_ACCESS_TOKEN}",
         "accept": "application/json",
     }
+    if extra_headers:
+        headers.update(extra_headers)
 
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
@@ -107,13 +117,40 @@ def _create_local_pix_payment(*, purchase: Purchase, provider: str) -> Payment:
     )
 
 
-def _create_mercadopago_pix_payment(*, purchase: Purchase) -> Payment:
+def _extract_pix_payment_details(response: dict) -> tuple[dict, dict]:
+    payment_data = ((response.get("transactions") or {}).get("payments") or [{}])[0]
+    payment_method = payment_data.get("payment_method") or {}
+    return payment_data, payment_method
+
+
+def _build_statement_descriptor(purchase: Purchase) -> str:
+    base_value = (
+        settings.MERCADOPAGO_STATEMENT_DESCRIPTOR
+        or purchase.raffle.beneficiary_name
+        or purchase.raffle.title
+    )
+    normalized = re.sub(r"[^A-Za-z0-9 ]+", "", base_value or "").strip().upper()
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized[:22]
+
+
+def _create_mercadopago_pix_payment(*, purchase: Purchase, device_id: str = "") -> Payment:
     notification_url = settings.MERCADOPAGO_NOTIFICATION_URL or None
+    quantity = purchase.numbers.count()
     payload = {
         "type": "online",
         "total_amount": f"{purchase.total_amount:.2f}",
         "external_reference": str(purchase.reference),
         "processing_mode": "automatic",
+        "items": [
+            {
+                "id": f"raffle-{purchase.raffle_id}",
+                "title": purchase.raffle.title,
+                "description": purchase.raffle.description,
+                "quantity": quantity,
+                "unit_price": float(purchase.raffle.price_per_number),
+            }
+        ],
         "transactions": {
             "payments": [
                 {
@@ -136,31 +173,57 @@ def _create_mercadopago_pix_payment(*, purchase: Purchase) -> Payment:
             },
         },
     }
+    statement_descriptor = _build_statement_descriptor(purchase)
+    if statement_descriptor:
+        payload["statement_descriptor"] = statement_descriptor
 
     if notification_url:
         payload["notification_url"] = notification_url
 
-    response = _mercadopago_request(method="POST", path="/v1/orders", payload=payload)
-    payment_data = ((response.get("transactions") or {}).get("payments") or [{}])[0]
-    payment_method = payment_data.get("payment_method") or {}
+    extra_headers = {}
+    if device_id:
+        extra_headers["X-meli-session-id"] = device_id
+
+    response = _mercadopago_request(
+        method="POST",
+        path="/v1/orders",
+        payload=payload,
+        extra_headers=extra_headers,
+    )
+    payment_data, payment_method = _extract_pix_payment_details(response)
+    order_id = str(response.get("id", ""))
+
+    # Mercado Pago can create Pix orders asynchronously and omit QR data on the
+    # initial POST response. In this case, fetch the order details a few times.
+    if order_id and not payment_method.get("qr_code") and not payment_method.get("qr_code_base64"):
+        for _ in range(3):
+            time.sleep(1)
+            response = _mercadopago_request(
+                method="GET",
+                path=f"/v1/orders/{order_id}",
+                extra_headers=extra_headers,
+            )
+            payment_data, payment_method = _extract_pix_payment_details(response)
+            if payment_method.get("qr_code") or payment_method.get("qr_code_base64"):
+                break
 
     return Payment.objects.create(
         purchase=purchase,
         provider="mercadopago",
         amount=purchase.total_amount,
-        external_id=str(response.get("id", "")),
+        external_id=order_id,
         qr_code=payment_method.get("qr_code_base64", ""),
         qr_code_text=payment_method.get("qr_code", ""),
         status=Payment.Status.PENDING,
     )
 
 
-def create_payment(*, purchase: Purchase, provider: str = "local_pix") -> Payment:
+def create_payment(*, purchase: Purchase, provider: str = "local_pix", device_id: str = "") -> Payment:
     if purchase.status != Purchase.Status.RESERVED:
         raise ValidationError("A compra precisa estar reservada para gerar pagamento.")
 
     if provider == "mercadopago":
-        return _create_mercadopago_pix_payment(purchase=purchase)
+        return _create_mercadopago_pix_payment(purchase=purchase, device_id=device_id)
 
     return _create_local_pix_payment(purchase=purchase, provider=provider)
 

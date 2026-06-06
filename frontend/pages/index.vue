@@ -277,7 +277,7 @@ type LookupPurchase = {
 }
 
 const api = useApi()
-const { $mercadoPago, $mercadoPagoPublicKey, $mercadoPagoLoadError } = useNuxtApp()
+const { $mercadoPago, $mercadoPagoPublicKey, $mercadoPagoLoadError, $mercadoPagoDeviceId } = useNuxtApp()
 const numbersSection = ref<HTMLElement | null>(null)
 const raffle = ref<Raffle | null>(null)
 const numbers = ref<RaffleNumber[]>([])
@@ -418,6 +418,7 @@ async function submitPurchase() {
         },
         numbers: selectedNumbers.value,
         payment_provider: 'mercadopago',
+        device_id: $mercadoPagoDeviceId || '',
       },
     })
     purchase.value = response.purchase

@@ -52,6 +52,7 @@ class PurchaseCreateSerializer(serializers.Serializer):
     buyer = BuyerSerializer()
     numbers = serializers.ListField(child=serializers.IntegerField(min_value=1), allow_empty=False)
     payment_provider = serializers.CharField(required=False, allow_blank=True)
+    device_id = serializers.CharField(required=False, allow_blank=True)
 
     def create(self, validated_data):
         return create_purchase(

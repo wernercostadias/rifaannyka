@@ -26,12 +26,13 @@ class PurchaseViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
         purchase = serializer.save()
         payment_provider = (serializer.validated_data.get("payment_provider") or "").strip()
+        device_id = (serializer.validated_data.get("device_id") or "").strip()
 
         if not payment_provider:
             return Response(PurchaseSerializer(purchase).data, status=status.HTTP_201_CREATED)
 
         try:
-            payment = create_payment(purchase=purchase, provider=payment_provider)
+            payment = create_payment(purchase=purchase, provider=payment_provider, device_id=device_id)
         except ValidationError:
             release_purchase(purchase)
             raise
