@@ -10,6 +10,27 @@ from apps.rifa.models import Raffle, RaffleNumber
 from .models import Buyer, Purchase, PurchaseNumber
 
 
+def expire_stale_purchases(*, raffle: Raffle, numbers: list[int] | None = None) -> int:
+    queryset = (
+        Purchase.objects.select_related("raffle")
+        .prefetch_related("numbers")
+        .filter(
+            raffle=raffle,
+            status=Purchase.Status.RESERVED,
+            reservation_expires_at__lte=timezone.now(),
+        )
+        .order_by("reservation_expires_at")
+    )
+    if numbers:
+        queryset = queryset.filter(numbers__number__in=numbers).distinct()
+
+    expired = 0
+    for purchase in queryset:
+        expire_purchase(purchase)
+        expired += 1
+    return expired
+
+
 def create_purchase(*, raffle_id: int, buyer_data: dict, numbers: list[int]) -> Purchase:
     if not numbers:
         raise ValidationError({"numbers": "Escolha pelo menos um numero."})
@@ -18,6 +39,7 @@ def create_purchase(*, raffle_id: int, buyer_data: dict, numbers: list[int]) -> 
 
     with transaction.atomic():
         raffle = Raffle.objects.select_for_update().get(id=raffle_id, status=Raffle.Status.ACTIVE)
+        expire_stale_purchases(raffle=raffle, numbers=clean_numbers)
         raffle_numbers = list(
             RaffleNumber.objects.select_for_update()
             .filter(raffle=raffle, number__in=clean_numbers)

@@ -12,7 +12,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.compras.models import Purchase
-from apps.compras.services import confirm_purchase_payment
+from apps.compras.services import confirm_purchase_payment, expire_purchase
 
 from .models import Payment, PaymentWebhookLog
 
@@ -220,6 +220,18 @@ def create_payment(*, purchase: Purchase, provider: str = "local_pix", device_id
         return _create_mercadopago_pix_payment(purchase=purchase, device_id=device_id)
 
     return _create_local_pix_payment(purchase=purchase, provider=provider)
+
+
+def refresh_payment_status(payment: Payment) -> Payment:
+    payment = Payment.objects.select_related("purchase").get(id=payment.id)
+    expire_purchase(payment.purchase)
+    payment.refresh_from_db()
+
+    if payment.provider == "mercadopago" and payment.status == Payment.Status.PENDING and payment.external_id:
+        _sync_mercadopago_order(payment.external_id)
+        payment.refresh_from_db()
+
+    return payment
 
 
 def confirm_payment(payment: Payment) -> Payment:

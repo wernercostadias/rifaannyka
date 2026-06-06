@@ -186,6 +186,42 @@ def test_create_purchase_endpoint_releases_numbers_if_payment_fails(api_client, 
 
 
 @pytest.mark.django_db
+def test_create_purchase_expires_stale_reservation_before_reusing_numbers(api_client, active_raffle):
+    stale_purchase = create_purchase(
+        raffle_id=active_raffle.id,
+        buyer_data={
+            "first_name": "Ana",
+            "last_name": "Silva",
+            "email": "ana@example.com",
+            "phone": "91999999999",
+            "cpf": "12345678909",
+        },
+        numbers=[5, 6],
+    )
+    stale_purchase.reservation_expires_at = timezone.now() - timedelta(minutes=1)
+    stale_purchase.save(update_fields=["reservation_expires_at"])
+
+    response = api_client.post(
+        "/api/v1/purchases/",
+        {
+            "raffle_id": active_raffle.id,
+            "buyer": {
+                "full_name": "Bruno Souza",
+                "phone": "91988887777",
+                "cpf": "98765432100",
+            },
+            "numbers": [5, 6],
+        },
+        format="json",
+    )
+
+    stale_purchase.refresh_from_db()
+    assert stale_purchase.status == Purchase.Status.EXPIRED
+    assert response.status_code == 201
+    assert response.data["status"] == Purchase.Status.RESERVED
+
+
+@pytest.mark.django_db
 def test_retrieve_purchase_endpoint_returns_purchase(api_client, reserved_purchase):
     response = api_client.get(f"/api/v1/purchases/{reserved_purchase.reference}/")
 
@@ -239,6 +275,29 @@ def test_retrieve_payment_endpoint_returns_payment(api_client, reserved_purchase
     assert response.status_code == 200
     assert response.data["id"] == payment.id
     assert response.data["status"] == Payment.Status.PENDING
+
+
+@pytest.mark.django_db
+def test_payment_status_endpoint_returns_payment_and_purchase(api_client, reserved_purchase):
+    payment = create_payment(purchase=reserved_purchase)
+
+    response = api_client.get(f"/api/v1/payments/{payment.id}/status/")
+
+    assert response.status_code == 200
+    assert response.data["payment"]["id"] == payment.id
+    assert response.data["purchase"]["reference"] == str(reserved_purchase.reference)
+
+
+@pytest.mark.django_db
+def test_payment_status_endpoint_expires_purchase_when_reservation_is_stale(api_client, reserved_purchase):
+    payment = create_payment(purchase=reserved_purchase)
+    reserved_purchase.reservation_expires_at = timezone.now() - timedelta(minutes=1)
+    reserved_purchase.save(update_fields=["reservation_expires_at"])
+
+    response = api_client.get(f"/api/v1/payments/{payment.id}/status/")
+
+    assert response.status_code == 200
+    assert response.data["purchase"]["status"] == Purchase.Status.EXPIRED
 
 
 @pytest.mark.django_db

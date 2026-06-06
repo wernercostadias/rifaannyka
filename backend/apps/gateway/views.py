@@ -4,9 +4,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
+from apps.compras.serializers import PurchaseSerializer
+
 from .models import Payment
 from .serializers import PaymentCreateSerializer, PaymentSerializer
-from .services import confirm_payment, process_webhook
+from .services import confirm_payment, process_webhook, refresh_payment_status
 
 
 class PaymentViewSet(GenericViewSet):
@@ -25,6 +27,16 @@ class PaymentViewSet(GenericViewSet):
 
     def retrieve(self, request, pk=None):
         return Response(PaymentSerializer(self.get_object()).data)
+
+    @action(detail=True, methods=["get"], url_path="status")
+    def status_view(self, request, pk=None):
+        payment = refresh_payment_status(self.get_object())
+        return Response(
+            {
+                "payment": PaymentSerializer(payment).data,
+                "purchase": PurchaseSerializer(payment.purchase).data,
+            }
+        )
 
     @action(detail=True, methods=["post"], url_path="confirm-local")
     def confirm_local(self, request, pk=None):

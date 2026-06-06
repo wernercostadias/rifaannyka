@@ -196,41 +196,39 @@
       </form>
     </BaseModal>
 
-    <BaseModal :open="paymentModalOpen" title="Forma de pagamento" eyebrow="3. Pagamento" @close="paymentModalOpen = false">
-      <div class="payment-options">
-        <button
-          class="payment-option"
-          :class="{ 'payment-option--active': paymentMethod === 'pix' }"
-          type="button"
-          @click="paymentMethod = 'pix'"
-        >
-          <strong>Pix</strong>
-          <span>Gerar código copia e cola</span>
-        </button>
-      </div>
-
+    <BaseModal :open="paymentModalOpen" title="" eyebrow="3. Pagamento" @close="paymentModalOpen = false">
       <p v-if="!mercadoPagoReady" class="payment-warning">
         {{ mercadoPagoErrorMessage }}
       </p>
 
       <div v-if="purchase" class="payment-box">
         <StatusBadge :status="purchase.status" />
-        <p>Reserva criada para {{ purchase.buyer.first_name }}.</p>
-        <p class="muted">Referência: {{ purchase.reference }}</p>
+        <p class="payment-summary">
+          Obrigado, <strong>{{ purchase.buyer.first_name }} {{ purchase.buyer.last_name }}</strong>.
+          Seus numeros <strong>{{ formatNumbers(purchase.numbers) }}</strong>
+          estao reservados aguardando o pagamento.
+        </p>
       </div>
 
       <div v-if="payment" class="pix-box">
-        <strong>Pix copia e cola</strong>
         <img v-if="payment.qr_code" class="pix-qr" :src="`data:image/jpeg;base64,${payment.qr_code}`" alt="QR Code Pix">
         <textarea readonly :value="payment.qr_code_text" />
         <BaseButton variant="outline" type="button" @click="copyPix">Copiar código Pix</BaseButton>
       </div>
 
       <div class="modal-actions">
-        <BaseButton v-if="!payment" :disabled="!mercadoPagoReady" :loading="creatingPayment" @click="createPixPayment">
-          Gerar pagamento Pix
-        </BaseButton>
-        <p v-else class="muted payment-note">Aguardando confirmação do pagamento pelo Mercado Pago.</p>
+        <template v-if="payment">
+          <p class="muted payment-note">{{ paymentStatusMessage }}</p>
+          <BaseButton
+            v-if="paymentSimulationEnabled && payment.status !== 'paid'"
+            variant="outline"
+            type="button"
+            :loading="simulatingPayment"
+            @click="simulatePayment"
+          >
+            Simular pagamento
+          </BaseButton>
+        </template>
       </div>
     </BaseModal>
   </div>
@@ -276,8 +274,38 @@ type LookupPurchase = {
   created_at: string
 }
 
+type PurchaseResponse = {
+  reference: string
+  raffle: number
+  buyer: {
+    first_name: string
+    last_name: string
+    email: string
+    phone: string
+    cpf: string
+  }
+  numbers: number[]
+  total_amount: string
+  status: string
+  reservation_expires_at: string
+  payment_reference: string
+}
+
+type PaymentResponse = {
+  id: number
+  purchase: number
+  provider: string
+  amount: string
+  status: string
+  external_id: string
+  qr_code: string
+  qr_code_text: string
+  paid_at: string | null
+}
+
 const api = useApi()
 const { $mercadoPago, $mercadoPagoPublicKey, $mercadoPagoLoadError, $mercadoPagoDeviceId } = useNuxtApp()
+const runtimeConfig = useRuntimeConfig()
 const numbersSection = ref<HTMLElement | null>(null)
 const raffle = ref<Raffle | null>(null)
 const numbers = ref<RaffleNumber[]>([])
@@ -286,13 +314,13 @@ const selectedNumbers = ref<number[]>([])
 const pending = ref(true)
 const submitting = ref(false)
 const creatingPayment = ref(false)
+const simulatingPayment = ref(false)
 const errorMessage = ref('')
-const purchase = ref<any>(null)
-const payment = ref<any>(null)
+const purchase = ref<PurchaseResponse | null>(null)
+const payment = ref<PaymentResponse | null>(null)
 const buyerModalOpen = ref(false)
 const paymentModalOpen = ref(false)
 const lookupModalOpen = ref(false)
-const paymentMethod = ref<'pix'>('pix')
 const isMobileNumbers = ref(false)
 const visibleNumberCount = ref(Number.POSITIVE_INFINITY)
 const lookupQuery = ref('')
@@ -323,11 +351,24 @@ const showLoadMore = computed(() => {
 })
 
 const mercadoPagoReady = computed(() => Boolean($mercadoPago && $mercadoPagoPublicKey))
+const paymentSimulationEnabled = Boolean(runtimeConfig.public.enablePaymentSimulation)
 const mercadoPagoErrorMessage = computed(() => {
   if ($mercadoPagoLoadError) {
     return 'Nao foi possivel carregar o Mercado Pago. Tente novamente em instantes.'
   }
   return 'Mercado Pago.js ainda nao foi inicializado. Verifique a NUXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY no ambiente.'
+})
+const paymentStatusMessage = computed(() => {
+  if (!purchase.value || !payment.value) {
+    return 'Preparando pagamento...'
+  }
+  if (payment.value.status === 'paid' || purchase.value.status === 'paid') {
+    return 'Pagamento confirmado. Seus numeros ja estao garantidos.'
+  }
+  if (purchase.value.status === 'expired' || purchase.value.status === 'canceled') {
+    return 'A reserva expirou ou foi cancelada. Escolha os numeros novamente.'
+  }
+  return 'Aguardando confirmacao do pagamento pelo Mercado Pago. Atualizando automaticamente...'
 })
 
 const canSubmit = computed(() => {
@@ -340,6 +381,8 @@ const canLookup = computed(() => {
   return query.length >= 3 || digits.length >= 4
 })
 
+let paymentStatusInterval: ReturnType<typeof setInterval> | null = null
+
 onMounted(async () => {
   syncNumberViewport()
   window.addEventListener('resize', syncNumberViewport)
@@ -350,6 +393,18 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', syncNumberViewport)
   window.removeEventListener('open-purchase-lookup', openPurchaseLookup)
+  stopPaymentStatusPolling()
+})
+
+watch(paymentModalOpen, (isOpen) => {
+  if (!isOpen) {
+    stopPaymentStatusPolling()
+    return
+  }
+
+  if (payment.value && payment.value.status !== 'paid' && purchase.value?.status === 'reserved') {
+    startPaymentStatusPolling()
+  }
 })
 
 async function loadRaffle() {
@@ -427,6 +482,7 @@ async function submitPurchase() {
     paymentModalOpen.value = true
     await Promise.all([loadNumbers(), loadLatestPurchases()])
     selectedNumbers.value = []
+    startPaymentStatusPolling()
   } catch (error) {
     errorMessage.value = 'Nao foi possivel iniciar o pagamento. Nenhum numero foi reservado.'
   } finally {
@@ -456,6 +512,57 @@ async function createPixPayment() {
 async function copyPix() {
   if (payment.value?.qr_code_text) {
     await navigator.clipboard.writeText(payment.value.qr_code_text)
+  }
+}
+
+async function refreshPaymentStatus() {
+  if (!payment.value) {
+    return
+  }
+
+  const response = await api(`/payments/${payment.value.id}/status/`)
+  payment.value = response.payment
+  purchase.value = response.purchase
+
+  if (purchase.value?.status === 'paid' || payment.value?.status === 'paid') {
+    stopPaymentStatusPolling()
+    await Promise.all([loadNumbers(), loadLatestPurchases()])
+    return
+  }
+
+  if (purchase.value?.status === 'expired' || purchase.value?.status === 'canceled') {
+    stopPaymentStatusPolling()
+    await Promise.all([loadNumbers(), loadLatestPurchases()])
+  }
+}
+
+function startPaymentStatusPolling() {
+  stopPaymentStatusPolling()
+  paymentStatusInterval = setInterval(() => {
+    refreshPaymentStatus().catch(() => {})
+  }, 5000)
+}
+
+function stopPaymentStatusPolling() {
+  if (paymentStatusInterval) {
+    clearInterval(paymentStatusInterval)
+    paymentStatusInterval = null
+  }
+}
+
+async function simulatePayment() {
+  if (!payment.value) {
+    return
+  }
+
+  simulatingPayment.value = true
+  try {
+    payment.value = await api(`/payments/${payment.value.id}/confirm-local/`, {
+      method: 'POST',
+    })
+    await refreshPaymentStatus()
+  } finally {
+    simulatingPayment.value = false
   }
 }
 
@@ -998,32 +1105,16 @@ code {
   padding: 10px;
 }
 
-.payment-options {
-  display: grid;
-  gap: 10px;
-}
-
-.payment-option {
-  display: grid;
-  gap: 4px;
-  border: 1px solid rgba(244, 143, 177, 0.28);
-  border-radius: var(--radius-md);
-  background: white;
-  color: var(--color-text);
-  cursor: pointer;
-  padding: 14px;
-  text-align: left;
-}
-
-.payment-option--active {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(244, 143, 177, 0.16);
-}
-
 .payment-box,
 .pix-box,
 .modal-actions {
   margin-top: 14px;
+}
+
+.payment-summary {
+  margin: 0;
+  color: #17345f;
+  line-height: 1.5;
 }
 
 .payment-note {

@@ -6,10 +6,11 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.gateway.serializers import PaymentSerializer
 from apps.gateway.services import create_payment
+from apps.rifa.models import Raffle
 
 from .models import Purchase
 from .serializers import PublicPurchaseSerializer, PurchaseCreateSerializer, PurchaseLookupSerializer, PurchaseSerializer
-from .services import expire_purchase, release_purchase
+from .services import expire_purchase, expire_stale_purchases, release_purchase
 
 
 class PurchaseViewSet(GenericViewSet):
@@ -62,6 +63,10 @@ class PurchaseViewSet(GenericViewSet):
     @action(detail=False, methods=["get"], url_path="latest")
     def latest(self, request):
         raffle_id = request.query_params.get("raffle_id")
+        if raffle_id:
+            active_raffle = Raffle.objects.filter(id=raffle_id).first()
+            if active_raffle is not None:
+                expire_stale_purchases(raffle=active_raffle)
         queryset = self.get_queryset().filter(status__in=[Purchase.Status.RESERVED, Purchase.Status.PAID])
         if raffle_id:
             queryset = queryset.filter(raffle_id=raffle_id)
@@ -74,6 +79,10 @@ class PurchaseViewSet(GenericViewSet):
         search = raw_search.casefold()
         digits = "".join(char for char in raw_search if char.isdigit())
         raffle_id = request.query_params.get("raffle_id")
+        if raffle_id:
+            active_raffle = Raffle.objects.filter(id=raffle_id).first()
+            if active_raffle is not None:
+                expire_stale_purchases(raffle=active_raffle)
 
         if len(search) < 3 and len(digits) < 4:
             raise ValidationError({"search": "Informe pelo menos 3 letras do nome ou 4 digitos do celular."})
