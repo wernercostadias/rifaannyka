@@ -1,1 +1,1 @@
-* * * * * cd /app/backend && /usr/local/bin/python manage.py expire_stale_purchases >> /proc/1/fd/1 2>&1
+* * * * * . /app/backend/.cron_env && cd /app/backend && /usr/local/bin/python manage.py expire_stale_purchases >> /proc/1/fd/1 2>&1

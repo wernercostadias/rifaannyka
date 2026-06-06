@@ -13,5 +13,7 @@ if [ -n "$DB_HOST" ]; then
   echo "PostgreSQL pronto!"
 fi
 
+printenv | sed 's/^\(.*\)$/export \1/g' > /app/backend/.cron_env
+
 echo "Iniciando cron..."
 exec cron -f
