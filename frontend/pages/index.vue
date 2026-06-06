@@ -27,7 +27,7 @@
               Ver mais números
             </BaseButton>
           </div>
-        </template>
+        </template> 
 
         <div class="selection-bar">
           <div>
