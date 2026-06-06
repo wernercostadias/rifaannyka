@@ -12,6 +12,13 @@ env = environ.Env(
     ALLOWED_HOSTS=(list, []),
     CORS_ALLOWED_ORIGINS=(list, []),
     RESERVATION_MINUTES=(int, 15),
+    DATABASE_URL=(str, ""),
+    POSTGRES_HOST=(str, ""),
+    POSTGRES_PORT=(int, 5432),
+    POSTGRES_DB=(str, ""),
+    POSTGRES_USER=(str, ""),
+    POSTGRES_PASSWORD=(str, ""),
+    POSTGRES_SSLMODE=(str, "disable"),
     MERCADOPAGO_PUBLIC_KEY=(str, ""),
     MERCADOPAGO_ACCESS_TOKEN=(str, ""),
     MERCADOPAGO_WEBHOOK_SECRET=(str, ""),
@@ -107,3 +114,24 @@ MERCADOPAGO_PUBLIC_KEY = env("MERCADOPAGO_PUBLIC_KEY")
 MERCADOPAGO_ACCESS_TOKEN = env("MERCADOPAGO_ACCESS_TOKEN")
 MERCADOPAGO_WEBHOOK_SECRET = env("MERCADOPAGO_WEBHOOK_SECRET")
 MERCADOPAGO_NOTIFICATION_URL = env("MERCADOPAGO_NOTIFICATION_URL")
+
+
+def get_database_url(default: str | None = None) -> str | None:
+    database_url = env("DATABASE_URL", default="")
+    if database_url:
+        return database_url
+
+    postgres_host = env("POSTGRES_HOST", default="")
+    postgres_db = env("POSTGRES_DB", default="")
+    postgres_user = env("POSTGRES_USER", default="")
+    postgres_password = env("POSTGRES_PASSWORD", default="")
+
+    if postgres_host and postgres_db and postgres_user and postgres_password:
+        postgres_port = env("POSTGRES_PORT", default=5432)
+        postgres_sslmode = env("POSTGRES_SSLMODE", default="disable")
+        return (
+            f"postgres://{postgres_user}:{postgres_password}"
+            f"@{postgres_host}:{postgres_port}/{postgres_db}?sslmode={postgres_sslmode}"
+        )
+
+    return default

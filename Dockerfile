@@ -11,7 +11,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app/backend
 
-RUN pip install --upgrade pip && \
+RUN apt-get update && apt-get install -y \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --upgrade pip && \
     pip install poetry
 
 COPY backend/pyproject.toml backend/poetry.lock* /app/backend/
@@ -20,6 +23,8 @@ RUN poetry install --only main --no-root
 
 COPY backend/ /app/backend/
 
+RUN chmod +x /app/backend/entrypoint.sh
+
 EXPOSE 8000
 
-CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT}"]
+CMD ["/app/backend/entrypoint.sh"]

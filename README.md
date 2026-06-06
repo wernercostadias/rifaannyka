@@ -55,7 +55,13 @@ MERCADOPAGO_PUBLIC_KEY=...
 MERCADOPAGO_ACCESS_TOKEN=...
 MERCADOPAGO_WEBHOOK_SECRET=...
 MERCADOPAGO_NOTIFICATION_URL=https://seu-dominio-api/api/v1/payments/webhook/mercadopago/
+RUN_SEED_DEMO=false
 ```
+
+No container de producao, o entrypoint roda `migrate` e `collectstatic` automaticamente.
+Se quiser popular a rifa demo no deploy, defina `RUN_SEED_DEMO=true`. Como o comando
+`seed_demo` atualiza a rifa demo existente, deixe essa variavel como `false` depois da
+primeira carga se nao quiser sobrescrever os dados da rifa demo em todo deploy.
 
 ## Primeira Rifa
 
