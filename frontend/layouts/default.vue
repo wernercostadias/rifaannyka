@@ -20,7 +20,7 @@
     </footer>
   </div>
 </template>
-
+ 
 <script setup lang="ts">
 function scrollToTop() {
   if (window.location.pathname === '/') {
