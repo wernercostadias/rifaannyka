@@ -135,20 +135,21 @@ def _build_statement_descriptor(purchase: Purchase) -> str:
 
 
 def _create_mercadopago_pix_payment(*, purchase: Purchase, device_id: str = "") -> Payment:
-    notification_url = settings.MERCADOPAGO_NOTIFICATION_URL or None
     quantity = purchase.numbers.count()
+    statement_descriptor = _build_statement_descriptor(purchase)
     payload = {
         "type": "online",
         "total_amount": f"{purchase.total_amount:.2f}",
         "external_reference": str(purchase.reference),
         "processing_mode": "automatic",
+        "description": purchase.raffle.description[:150],
         "items": [
             {
-                "id": f"raffle-{purchase.raffle_id}",
                 "title": purchase.raffle.title,
-                "description": purchase.raffle.description,
+                "external_code": f"raffle-{purchase.raffle_id}",
                 "quantity": quantity,
-                "unit_price": float(purchase.raffle.price_per_number),
+                "unit_price": f"{purchase.raffle.price_per_number:.2f}",
+                "unit_measure": "unit",
             }
         ],
         "transactions": {
@@ -158,6 +159,7 @@ def _create_mercadopago_pix_payment(*, purchase: Purchase, device_id: str = "") 
                     "payment_method": {
                         "id": "pix",
                         "type": "bank_transfer",
+                        **({"statement_descriptor": statement_descriptor} if statement_descriptor else {}),
                     },
                     "expiration_time": "PT24H",
                 }
@@ -173,13 +175,6 @@ def _create_mercadopago_pix_payment(*, purchase: Purchase, device_id: str = "") 
             },
         },
     }
-    statement_descriptor = _build_statement_descriptor(purchase)
-    if statement_descriptor:
-        payload["statement_descriptor"] = statement_descriptor
-
-    if notification_url:
-        payload["notification_url"] = notification_url
-
     extra_headers = {}
     if device_id:
         extra_headers["X-meli-session-id"] = device_id

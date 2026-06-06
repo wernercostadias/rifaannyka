@@ -127,9 +127,12 @@ class PaymentServiceTests(TestCase):
         kwargs = mercadopago_request.call_args.kwargs
         self.assertEqual(kwargs["extra_headers"]["X-meli-session-id"], "device-123")
         self.assertEqual(kwargs["payload"]["items"][0]["quantity"], 2)
-        self.assertEqual(kwargs["payload"]["items"][0]["unit_price"], 10.0)
+        self.assertEqual(kwargs["payload"]["items"][0]["unit_price"], "10.00")
         self.assertEqual(kwargs["payload"]["items"][0]["title"], self.raffle.title)
-        self.assertIn("statement_descriptor", kwargs["payload"])
+        self.assertEqual(kwargs["payload"]["items"][0]["external_code"], f"raffle-{self.raffle.id}")
+        self.assertEqual(kwargs["payload"]["items"][0]["unit_measure"], "unit")
+        self.assertEqual(kwargs["payload"]["transactions"]["payments"][0]["payment_method"]["statement_descriptor"], "MARIA")
+        self.assertNotIn("notification_url", kwargs["payload"])
 
 
 class MercadoPagoWebhookSignatureTests(TestCase):
