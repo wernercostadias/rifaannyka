@@ -1,6 +1,7 @@
 import json
 import hmac
 import hashlib
+import logging
 import time
 import uuid
 import re
@@ -18,6 +19,40 @@ from .models import Payment, PaymentWebhookLog
 
 
 MERCADOPAGO_API_BASE = "https://api.mercadopago.com"
+logger = logging.getLogger(__name__)
+
+
+def _mask_email(email: str) -> str:
+    if "@" not in email:
+        return "***"
+    local, domain = email.split("@", 1)
+    if len(local) <= 2:
+        return f"{local[:1]}***@{domain}"
+    return f"{local[:2]}***@{domain}"
+
+
+def _mask_document(value: str) -> str:
+    digits = "".join(char for char in value if char.isdigit())
+    if len(digits) < 4:
+        return "***"
+    return f"{digits[:3]}***{digits[-2:]}"
+
+
+def _sanitize_mercadopago_payload(payload: dict | None) -> dict | None:
+    if payload is None:
+        return None
+
+    sanitized = json.loads(json.dumps(payload))
+    payer = sanitized.get("payer") or {}
+    identification = payer.get("identification") or {}
+
+    if payer.get("email"):
+        payer["email"] = _mask_email(str(payer["email"]))
+    if identification.get("number"):
+        identification["number"] = _mask_document(str(identification["number"]))
+
+    sanitized["payer"] = payer
+    return sanitized
 
 
 def _mercadopago_request(
@@ -44,14 +79,39 @@ def _mercadopago_request(
         headers["X-Idempotency-Key"] = str(uuid.uuid4())
 
     req = request.Request(f"{MERCADOPAGO_API_BASE}{path}", data=body, headers=headers, method=method)
+    sanitized_payload = _sanitize_mercadopago_payload(payload)
 
     try:
         with request.urlopen(req, timeout=30) as response:
-            return json.loads(response.read().decode("utf-8"))
+            response_data = json.loads(response.read().decode("utf-8"))
+            logger.info(
+                "Mercado Pago request succeeded: method=%s path=%s response_id=%s payload=%s",
+                method,
+                path,
+                response_data.get("id"),
+                sanitized_payload,
+            )
+            return response_data
     except error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="ignore")
+        logger.error(
+            "Mercado Pago HTTP error: method=%s path=%s status=%s reason=%s payload=%s response=%s",
+            method,
+            path,
+            exc.code,
+            exc.reason,
+            sanitized_payload,
+            details,
+        )
         raise ValidationError(f"Erro ao comunicar com Mercado Pago: {details or exc.reason}") from exc
     except error.URLError as exc:
+        logger.error(
+            "Mercado Pago network error: method=%s path=%s reason=%s payload=%s",
+            method,
+            path,
+            str(exc.reason),
+            sanitized_payload,
+        )
         raise ValidationError(f"Erro de rede ao comunicar com Mercado Pago: {exc.reason}") from exc
 
 
@@ -186,6 +246,18 @@ def _create_mercadopago_pix_payment(*, purchase: Purchase, device_id: str = "") 
     )
     payment_data, payment_method = _extract_pix_payment_details(response)
     order_id = str(response.get("id", ""))
+    status = str(payment_data.get("status") or response.get("status") or "").lower()
+    status_detail = str(payment_data.get("status_detail") or response.get("status_detail") or "").lower()
+
+    logger.info(
+        "Mercado Pago order created: purchase=%s order_id=%s status=%s status_detail=%s has_qr=%s has_qr_base64=%s",
+        str(purchase.reference),
+        order_id,
+        status,
+        status_detail,
+        bool(payment_method.get("qr_code")),
+        bool(payment_method.get("qr_code_base64")),
+    )
 
     # Mercado Pago can create Pix orders asynchronously and omit QR data on the
     # initial POST response. In this case, fetch the order details a few times.
@@ -198,8 +270,29 @@ def _create_mercadopago_pix_payment(*, purchase: Purchase, device_id: str = "") 
                 extra_headers=extra_headers,
             )
             payment_data, payment_method = _extract_pix_payment_details(response)
+            status = str(payment_data.get("status") or response.get("status") or "").lower()
+            status_detail = str(payment_data.get("status_detail") or response.get("status_detail") or "").lower()
+            logger.info(
+                "Mercado Pago order recheck: purchase=%s order_id=%s status=%s status_detail=%s has_qr=%s has_qr_base64=%s",
+                str(purchase.reference),
+                order_id,
+                status,
+                status_detail,
+                bool(payment_method.get("qr_code")),
+                bool(payment_method.get("qr_code_base64")),
+            )
             if payment_method.get("qr_code") or payment_method.get("qr_code_base64"):
                 break
+
+    if status == "failed" or status_detail in {"processing_error", "invalid_users_involved"}:
+        logger.warning(
+            "Mercado Pago order failed state: purchase=%s order_id=%s status=%s status_detail=%s response=%s",
+            str(purchase.reference),
+            order_id,
+            status,
+            status_detail,
+            response,
+        )
 
     return Payment.objects.create(
         purchase=purchase,

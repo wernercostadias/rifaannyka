@@ -8,7 +8,7 @@ class BuyerSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(write_only=True, required=False)
     first_name = serializers.CharField(required=False)
     last_name = serializers.CharField(required=False, allow_blank=True)
-    email = serializers.EmailField(required=False, allow_blank=True)
+    email = serializers.EmailField(required=True, allow_blank=False)
     cpf = serializers.CharField(max_length=14)
 
     class Meta:
@@ -35,8 +35,9 @@ class BuyerSerializer(serializers.ModelSerializer):
 
         email = (attrs.get("email") or "").strip()
         if not email:
-            cpf_digits = "".join(char for char in attrs.get("cpf", "") if char.isdigit())
-            attrs["email"] = f"comprador-{cpf_digits}@testuser.com"
+            raise serializers.ValidationError({"email": "Informe um e-mail valido."})
+
+        attrs["email"] = email
 
         return attrs
 

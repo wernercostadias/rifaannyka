@@ -11,6 +11,17 @@
         @update:model-value="$emit('update:full-name', $event)"
       />
       <BaseInput
+        :model-value="buyer.email"
+        label="E-mail"
+        name="email"
+        type="email"
+        placeholder="voce@email.com"
+        inputmode="email"
+        autocomplete="email"
+        :error="errors.email"
+        @update:model-value="$emit('update:email', $event)"
+      />
+      <BaseInput
         :model-value="buyer.phone"
         label="Celular"
         name="phone"
@@ -62,6 +73,7 @@ defineEmits<{
   close: []
   submit: []
   'update:full-name': [value: string]
+  'update:email': [value: string]
   'update:phone': [value: string]
   'update:cpf': [value: string]
 }>()

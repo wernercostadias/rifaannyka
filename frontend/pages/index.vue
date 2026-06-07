@@ -52,6 +52,7 @@
       @close="buyerModalOpen = false"
       @submit="submitPurchase"
       @update:full-name="updateBuyerFullName"
+      @update:email="updateBuyerEmail"
       @update:phone="updateBuyerPhone"
       @update:cpf="updateBuyerCpf"
     />
@@ -135,6 +136,7 @@ const visibleLatestPurchasesCount = ref(INITIAL_LATEST_PURCHASES)
 
 const buyer = reactive<BuyerFormData>({
   full_name: '',
+  email: '',
   phone: '',
   cpf: '',
 })
@@ -243,9 +245,11 @@ const canSubmit = computed(() => {
   return (
     selectedNumbers.value.length > 0 &&
     Boolean(buyer.full_name.trim()) &&
+    Boolean(buyer.email.trim()) &&
     Boolean(buyer.phone) &&
     Boolean(buyer.cpf) &&
     !buyerErrors.value.full_name &&
+    !buyerErrors.value.email &&
     !buyerErrors.value.phone &&
     !buyerErrors.value.cpf &&
     mercadoPagoReady.value
@@ -264,6 +268,7 @@ let paymentStatusInterval: ReturnType<typeof setInterval> | null = null
 
 const buyerErrors = computed<BuyerFormErrors>(() => ({
   full_name: validateFullName(buyer.full_name),
+  email: validateEmail(buyer.email),
   phone: validatePhone(buyer.phone),
   cpf: validateCpf(buyer.cpf),
 }))
@@ -398,6 +403,20 @@ function validatePhone(value: string) {
   return ''
 }
 
+function validateEmail(value: string) {
+  const normalized = value.trim()
+  if (!normalized) {
+    return ''
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailPattern.test(normalized)) {
+    return 'Informe um e-mail valido.'
+  }
+
+  return ''
+}
+
 function isValidCpfDigits(digits: string) {
   if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
     return false
@@ -440,6 +459,10 @@ function updateBuyerFullName(value: string) {
   buyer.full_name = value.replace(/\s+/g, ' ').replace(/^\s+/, '')
 }
 
+function updateBuyerEmail(value: string) {
+  buyer.email = value.trim()
+}
+
 function updateBuyerPhone(value: string) {
   buyer.phone = formatPhone(value)
 }
@@ -475,6 +498,7 @@ async function submitPurchase() {
         raffle_id: raffle.value.id,
         buyer: {
           full_name: buyer.full_name,
+          email: buyer.email,
           phone: buyer.phone,
           cpf: buyer.cpf,
         },

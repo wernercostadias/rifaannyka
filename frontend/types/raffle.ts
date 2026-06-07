@@ -68,12 +68,14 @@ export type PaymentResponse = {
 
 export type BuyerFormData = {
   full_name: string
+  email: string
   phone: string
   cpf: string
 }
 
 export type BuyerFormErrors = {
   full_name: string
+  email: string
   phone: string
   cpf: string
 }

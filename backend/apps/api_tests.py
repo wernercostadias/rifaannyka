@@ -107,6 +107,7 @@ def test_create_purchase_endpoint_creates_reserved_purchase(api_client, active_r
             "raffle_id": active_raffle.id,
             "buyer": {
                 "full_name": "Bruno Souza",
+                "email": "bruno@example.com",
                 "phone": "91988887777",
                 "cpf": "98765432100",
             },
@@ -142,6 +143,7 @@ def test_create_purchase_endpoint_can_create_payment_together(api_client, active
                 "raffle_id": active_raffle.id,
                 "buyer": {
                     "full_name": "Bruno Souza",
+                    "email": "bruno@example.com",
                     "phone": "91988887777",
                     "cpf": "98765432100",
                 },
@@ -166,6 +168,7 @@ def test_create_purchase_endpoint_releases_numbers_if_payment_fails(api_client, 
                 "raffle_id": active_raffle.id,
                 "buyer": {
                     "full_name": "Bruno Souza",
+                    "email": "bruno@example.com",
                     "phone": "91988887777",
                     "cpf": "98765432100",
                 },
@@ -207,6 +210,7 @@ def test_create_purchase_expires_stale_reservation_before_reusing_numbers(api_cl
             "raffle_id": active_raffle.id,
             "buyer": {
                 "full_name": "Bruno Souza",
+                "email": "bruno@example.com",
                 "phone": "91988887777",
                 "cpf": "98765432100",
             },

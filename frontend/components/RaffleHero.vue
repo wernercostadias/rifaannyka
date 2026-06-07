@@ -42,7 +42,6 @@
         </p>
       </div>
     </div>
-
     <div class="message-cloud">
       Sua ajuda transforma sonhos em conquistas!
     </div>
