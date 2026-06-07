@@ -8,7 +8,7 @@ from apps.rifa.services import activate_raffle
 
 
 class Command(BaseCommand):
-    help = "Cria uma rifa demo ativa com meta de R$ 3.000,00."
+    help = "Cria uma rifa demo ativa com meta de R$ 3.500,00."
 
     def handle(self, *args, **options):
         now = timezone.now()

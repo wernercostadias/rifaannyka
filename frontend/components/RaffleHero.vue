@@ -617,7 +617,7 @@ blockquote span {
   .message-cloud {
     justify-self: end;
     width: 96px;
-    margin: -2px 12px -10px 0;
+    margin: 10px 12px -2px 0;
     font-size: 8px;
     line-height: 1.14;
   }
@@ -757,7 +757,7 @@ blockquote span {
 
   .message-cloud {
     width: 92px;
-    margin-right: 8px;
+    margin: 12px 8px 0 0;
   }
 
   .decor-heart-one {
