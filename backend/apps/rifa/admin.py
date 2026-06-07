@@ -30,11 +30,11 @@ class RaffleNumberAdmin(admin.ModelAdmin):
         return (
             super()
             .get_queryset(request)
-            .prefetch_related(Prefetch("purchase_numbers", queryset=purchase_number_qs))
+            .prefetch_related(Prefetch("purchasenumber_set", queryset=purchase_number_qs))
         )
 
     def _latest_purchase(self, obj):
-        purchase_number = next(iter(obj.purchase_numbers.all()), None)
+        purchase_number = next(iter(obj.purchasenumber_set.all()), None)
         return purchase_number.purchase if purchase_number else None
 
     def buyer_name(self, obj):
