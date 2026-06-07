@@ -13,7 +13,7 @@ from apps.gateway.services import confirm_payment
 from apps.rifa.models import Raffle, RaffleNumber
 from apps.rifa.services import activate_raffle
 
-from .models import Purchase
+from .models import Purchase, PurchaseEvent
 from .serializers import BuyerSerializer
 from .services import confirm_purchase_payment, create_purchase, expire_purchase
 
@@ -50,6 +50,12 @@ class PurchaseServiceTests(TestCase):
             RaffleNumber.objects.filter(raffle=self.raffle, status=RaffleNumber.Status.RESERVED).count(),
             3,
         )
+        event = purchase.events.get(event_type=PurchaseEvent.EventType.RESERVED)
+        self.assertEqual(event.source, "api")
+        self.assertEqual(event.buyer_name, "Ana Silva")
+        self.assertEqual(event.buyer_email, "ana@example.com")
+        self.assertEqual(event.numbers_snapshot, [1, 2, 3])
+        self.assertEqual(event.metadata["numbers"], [1, 2, 3])
 
     def test_create_purchase_blocks_duplicate_reserved_number(self):
         create_purchase(raffle_id=self.raffle.id, buyer_data=self.buyer_data, numbers=[1])
@@ -62,7 +68,7 @@ class PurchaseServiceTests(TestCase):
         purchase.reservation_expires_at = timezone.now() - timedelta(minutes=1)
         purchase.save(update_fields=["reservation_expires_at"])
 
-        expire_purchase(purchase)
+        expire_purchase(purchase, source="cron", metadata={"reason": "reservation_timeout"})
 
         purchase.refresh_from_db()
         self.assertEqual(purchase.status, Purchase.Status.EXPIRED)
@@ -70,6 +76,11 @@ class PurchaseServiceTests(TestCase):
             RaffleNumber.objects.filter(number__in=[4, 5], status=RaffleNumber.Status.AVAILABLE).count(),
             2,
         )
+        event = purchase.events.get(event_type=PurchaseEvent.EventType.EXPIRED)
+        self.assertEqual(event.source, "cron")
+        self.assertEqual(event.buyer_cpf, "12345678909")
+        self.assertEqual(event.numbers_snapshot, [4, 5])
+        self.assertEqual(event.metadata["reason"], "reservation_timeout")
 
     def test_buyer_serializer_requires_email(self):
         serializer = BuyerSerializer(
@@ -243,3 +254,13 @@ class ExpireStalePurchasesCommandTests(TestCase):
             2,
         )
         self.assertIn("1 compras confirmadas", output.getvalue().lower())
+        self.assertTrue(
+            purchase.events.filter(
+                event_type=PurchaseEvent.EventType.PAYMENT_CHECKED,
+                source="cron",
+            ).exists()
+        )
+        confirmed_event = purchase.events.get(event_type=PurchaseEvent.EventType.PAYMENT_CONFIRMED)
+        self.assertEqual(confirmed_event.buyer_name, "Bruno Souza")
+        self.assertEqual(confirmed_event.numbers_snapshot, [3, 4])
+        self.assertIn("payment_reference", confirmed_event.metadata)

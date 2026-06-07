@@ -220,7 +220,7 @@ def _create_mercadopago_pix_payment(*, purchase: Purchase, device_id: str = "") 
                         "type": "bank_transfer",
                         **({"statement_descriptor": statement_descriptor} if statement_descriptor else {}),
                     },
-                    "expiration_time": "PT24H",
+                    "expiration_time": "PT10M",
                 }
             ]
         },
@@ -317,11 +317,13 @@ def create_payment(*, purchase: Purchase, provider: str = "local_pix", device_id
 
 def refresh_payment_status(payment: Payment) -> Payment:
     payment = Payment.objects.select_related("purchase").get(id=payment.id)
-    expire_purchase(payment.purchase)
-    payment.refresh_from_db()
 
     if payment.provider == "mercadopago" and payment.status == Payment.Status.PENDING and payment.external_id:
         _sync_mercadopago_order(payment.external_id)
+        payment.refresh_from_db()
+
+    if payment.status != Payment.Status.PAID:
+        expire_purchase(payment.purchase)
         payment.refresh_from_db()
 
     return payment
@@ -343,7 +345,15 @@ def confirm_payment(payment: Payment) -> Payment:
         payment.status = Payment.Status.PAID
         payment.paid_at = timezone.now()
         payment.save(update_fields=["status", "paid_at", "updated_at"])
-        confirm_purchase_payment(payment.purchase, payment_reference=str(payment.id))
+        confirm_purchase_payment(
+            payment.purchase,
+            payment_reference=str(payment.id),
+            source="payment_confirmation",
+            metadata={
+                "payment_id": payment.id,
+                "provider": payment.provider,
+            },
+        )
     return payment
 
 
@@ -354,10 +364,36 @@ def cancel_payment(payment: Payment) -> Payment:
 
 
 def _mark_payment_as_paid(*, payment: Payment, payment_reference: str) -> bool:
+    payment.refresh_from_db()
     if payment.status == Payment.Status.PAID and payment.purchase.status == Purchase.Status.PAID:
         return True
+    if payment.purchase.status != Purchase.Status.RESERVED:
+        logger.warning(
+            "Mercado Pago payment approved after reservation ended: payment_id=%s purchase=%s purchase_status=%s",
+            payment.id,
+            str(payment.purchase.reference),
+            payment.purchase.status,
+        )
+        return False
 
-    confirm_purchase_payment(payment.purchase, payment_reference=payment_reference)
+    try:
+        confirm_purchase_payment(
+            payment.purchase,
+            payment_reference=payment_reference,
+            source="payment_sync",
+            metadata={
+                "payment_id": payment.id,
+                "provider": payment.provider,
+            },
+        )
+    except ValidationError as exc:
+        logger.warning(
+            "Mercado Pago payment could not be confirmed locally: payment_id=%s purchase=%s reason=%s",
+            payment.id,
+            str(payment.purchase.reference),
+            exc.detail,
+        )
+        return False
     payment.status = Payment.Status.PAID
     payment.paid_at = timezone.now()
     payment.save(update_fields=["status", "paid_at", "updated_at"])

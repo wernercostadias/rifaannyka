@@ -46,3 +46,30 @@ class PurchaseNumber(BaseModel):
         constraints = [
             models.UniqueConstraint(fields=["purchase", "raffle_number"], name="unique_purchase_raffle_number"),
         ]
+
+
+class PurchaseEvent(BaseModel):
+    class EventType(models.TextChoices):
+        RESERVED = "reserved", "Reserva criada"
+        PAYMENT_CHECKED = "payment_checked", "Pagamento consultado"
+        PAYMENT_CONFIRMED = "payment_confirmed", "Pagamento confirmado"
+        EXPIRED = "expired", "Reserva expirada"
+        RELEASED = "released", "Reserva liberada"
+        SYNC_FAILED = "sync_failed", "Falha de sincronizacao"
+
+    purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, related_name="events")
+    buyer = models.ForeignKey(Buyer, on_delete=models.PROTECT, related_name="purchase_events")
+    event_type = models.CharField(max_length=40, choices=EventType.choices)
+    source = models.CharField(max_length=40, default="system")
+    old_status = models.CharField(max_length=20, blank=True)
+    new_status = models.CharField(max_length=20, blank=True)
+    message = models.CharField(max_length=255, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    numbers_snapshot = models.JSONField(default=list, blank=True)
+    buyer_name = models.CharField(max_length=241)
+    buyer_email = models.EmailField()
+    buyer_phone = models.CharField(max_length=30)
+    buyer_cpf = models.CharField(max_length=14)
+
+    def __str__(self):
+        return f"{self.purchase.reference} - {self.event_type}"

@@ -13,7 +13,7 @@ from apps.rifa.models import Raffle, RaffleNumber
 from apps.rifa.services import activate_raffle
 
 from .models import Payment
-from .services import confirm_payment, create_payment, process_webhook, validate_mercadopago_signature
+from .services import confirm_payment, create_payment, process_webhook, refresh_payment_status, validate_mercadopago_signature
 
 
 class PaymentServiceTests(TestCase):
@@ -61,6 +61,26 @@ class PaymentServiceTests(TestCase):
             RaffleNumber.objects.filter(number__in=[7, 8], status=RaffleNumber.Status.PAID).count(),
             2,
         )
+
+    @patch("apps.gateway.services._mercadopago_request", side_effect=ValidationError("falha temporaria"))
+    def test_refresh_payment_status_does_not_expire_purchase_before_sync_attempt_succeeds(self, _mercadopago_request):
+        payment = Payment.objects.create(
+            purchase=self.purchase,
+            provider="mercadopago",
+            amount=self.purchase.total_amount,
+            external_id="ORD123",
+            status=Payment.Status.PENDING,
+        )
+        self.purchase.reservation_expires_at = timezone.now() - timedelta(minutes=1)
+        self.purchase.save(update_fields=["reservation_expires_at"])
+
+        with self.assertRaisesMessage(ValidationError, "falha temporaria"):
+            refresh_payment_status(payment)
+
+        self.purchase.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(self.purchase.status, Purchase.Status.RESERVED)
+        self.assertEqual(payment.status, Payment.Status.PENDING)
 
     @patch("apps.gateway.services.time.sleep", return_value=None)
     @patch("apps.gateway.services._mercadopago_request")
@@ -280,6 +300,51 @@ class MercadoPagoWebhookProcessingTests(TestCase):
         self.purchase.refresh_from_db()
         self.assertEqual(self.payment.status, Payment.Status.CANCELED)
         self.assertEqual(self.purchase.status, Purchase.Status.RESERVED)
+
+    @patch("apps.gateway.services._mercadopago_request")
+    def test_process_webhook_does_not_confirm_purchase_paid_after_reservation_expired(self, mercadopago_request):
+        self.purchase.reservation_expires_at = timezone.now() - timedelta(minutes=1)
+        self.purchase.save(update_fields=["reservation_expires_at"])
+        self.purchase.status = Purchase.Status.EXPIRED
+        self.purchase.save(update_fields=["status", "updated_at"])
+
+        mercadopago_request.return_value = {
+            "id": "ORD123",
+            "external_reference": str(self.purchase.reference),
+            "status": "processed",
+            "status_detail": "accredited",
+            "transactions": {
+                "payments": [
+                    {
+                        "id": "PAY123",
+                        "status": "processed",
+                        "status_detail": "accredited",
+                    }
+                ]
+            },
+        }
+        secret = "test-secret"
+        request_id = "req-abc"
+        ts = "1710000000"
+        manifest = "id:ORD123;request-id:req-abc;ts:1710000000;"
+        signature = hmac.new(secret.encode("utf-8"), manifest.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        with self.settings(MERCADOPAGO_WEBHOOK_SECRET=secret):
+            log = process_webhook(
+                provider="mercadopago",
+                payload={"data": {"id": "ORD123"}},
+                headers={
+                    "x-signature": f"ts={ts},v1={signature}",
+                    "x-request-id": request_id,
+                },
+                query_params={"data.id": "ORD123", "type": "order"},
+            )
+
+        self.assertFalse(log.processed)
+        self.purchase.refresh_from_db()
+        self.payment.refresh_from_db()
+        self.assertEqual(self.purchase.status, Purchase.Status.EXPIRED)
+        self.assertEqual(self.payment.status, Payment.Status.PENDING)
 
     def test_process_webhook_rejects_unsupported_provider(self):
         with self.assertRaisesMessage(ValidationError, "Webhook provider nao suportado."):
