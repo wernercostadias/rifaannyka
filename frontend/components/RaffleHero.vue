@@ -2,10 +2,11 @@
   <section class="poster-hero">
     <div class="decor decor-cap" aria-hidden="true">
       <svg viewBox="0 0 96 72">
-        <path d="M8 25 48 7l40 18-40 18L8 25Z" />
-        <path d="M25 35v14c10 8 35 8 46 0V35" />
-        <path d="M82 28v24" />
-        <path d="M82 52c-4 7-4 11 0 14 4-3 4-7 0-14Z" />
+        <path d="M12 24 48 10l36 14-36 14L12 24Z" />
+        <path d="M28 33v11c0 4 9 10 20 10s20-6 20-10V33" />
+        <path d="M78 27v18" />
+        <path d="M48 21l10 4" />
+        <circle cx="78" cy="49" r="4.5" />
       </svg>
     </div>
 
@@ -27,12 +28,19 @@
         Juntos pelo futuro da Annyka!
       </div>
 
-      <p class="story">
-        O objetivo desta rifa é alcançar o valor de um <strong>notebook</strong>,
-        equipamento essencial para que <strong>Ânnyka Yasmin</strong> continue os
-        estudos e acompanhe com mais estrutura as atividades do curso de
-        especialização no <strong>IEMA</strong>.
-      </p>
+      <div class="story">
+        <p>
+          Meu nome é <strong>Ânnyka Yasmin</strong>, tenho <strong>16 anos</strong> e
+          sigo meus estudos com dedicação. Sou fluente em
+          <strong>inglês</strong> e estou começando uma nova etapa como
+          <strong>estagiária</strong>.
+        </p>
+        <p>
+          Neste momento, conquistar um <strong>notebook</strong> vai me ajudar a
+          ampliar meus estudos e acompanhar com mais estrutura as atividades do
+          curso de especialização no <strong>IEMA</strong>.
+        </p>
+      </div>
     </div>
 
     <div class="message-cloud">
@@ -40,10 +48,8 @@
     </div>
 
     <div class="hero-media">
-      <div class="photo-ring">
-        <div class="photo-frame">
-          <img :src="heroImage" :alt="raffle?.title || 'Foto da Annyka'" class="hero-photo">
-        </div>
+      <div class="photo-frame">
+        <img :src="heroImage" :alt="raffle?.title || 'Foto da Annyka'" class="hero-photo">
       </div>
 
       <div class="price-seal">
@@ -89,7 +95,7 @@ const props = defineProps<{
   } | null
 }>()
 
-const heroImage = computed(() => props.raffle?.image || '/images/anika.jpeg')
+const heroImage = '/images/img.png'
 
 const formattedPrice = computed(() => {
   const price = Number(props.raffle?.price_per_number || 0)
@@ -185,22 +191,20 @@ h1 {
 }
 
 .story {
-  max-width: 560px;
+  max-width: 590px;
+  display: grid;
+  gap: 14px;
   margin: 0;
+  padding-left: 20px;
+  border-left: 4px solid rgba(33, 143, 139, 0.2);
   color: #17345f;
-  font-size: 20px;
-  line-height: 1.42;
+  font-size: 19px;
+  line-height: 1.56;
   text-wrap: pretty;
 }
 
-.story::first-letter {
-  float: left;
-  margin: 1px 6px 0 0;
-  color: #218f8b;
-  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
-  font-size: 1.95em;
-  font-weight: 700;
-  line-height: 0.95;
+.story p {
+  margin: 0;
 }
 
 .story strong {
@@ -238,58 +242,49 @@ h1 {
   z-index: 2;
   display: grid;
   justify-items: center;
-  gap: 0;
+  gap: 8px;
   padding-bottom: 20px;
-}
-
-.photo-ring {
-  position: relative;
-  padding: 16px;
-  border-radius: 50%;
-}
-
-.photo-ring::before,
-.photo-ring::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 7px solid rgba(33, 143, 139, 0.28);
-  border-radius: 47% 53% 51% 49% / 48% 45% 55% 52%;
-}
-
-.photo-ring::after {
-  inset: 8px;
-  border-width: 4px;
-  transform: rotate(15deg);
 }
 
 .photo-frame {
   position: relative;
   z-index: 1;
-  width: 278px;
-  aspect-ratio: 1;
+  width: 320px;
+  aspect-ratio: 0.78;
   overflow: hidden;
-  border: 9px solid white;
-  border-radius: 50%;
-  background: white;
-  box-shadow: var(--shadow-card);
+  background: transparent;
+}
+
+.photo-frame::before {
+  content: "";
+  position: absolute;
+  inset: 18px 24px 8px;
+  z-index: 0;
+  border-radius: 46% 54% 34% 34% / 28% 28% 38% 38%;
+  background:
+    radial-gradient(circle at 50% 24%, rgba(250, 218, 221, 0.9), rgba(250, 218, 221, 0.4) 46%, transparent 72%),
+    radial-gradient(circle at 50% 72%, rgba(33, 143, 139, 0.14), transparent 66%);
+  filter: blur(8px);
 }
 
 .hero-photo,
 .placeholder {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   display: grid;
   place-items: center;
-  object-fit: cover;
-  background: linear-gradient(135deg, var(--color-primary-light), #fff, rgba(212, 175, 55, 0.22));
+  object-fit: contain;
+  background: transparent;
   color: var(--color-highlight);
   font-weight: 900;
 }
 
 .hero-photo {
-  object-position: center 2%;
-  transform: scale(1.18);
+  object-position: center top;
+  transform: translateX(0) translateY(0) scale(1.14);
+  transform-origin: center top;
 }
 
 .price-seal {
@@ -326,11 +321,14 @@ h1 {
   font-size: 12px;
   font-weight: 900;
   line-height: 1.1;
+  text-align: center;
 }
 
 .price-seal strong {
+  display: block;
   font-size: 24px;
-  line-height: 0.95;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 blockquote {
@@ -477,7 +475,7 @@ blockquote span {
   }
 
   .photo-frame {
-    width: 244px;
+    width: 288px;
   }
 
   .price-seal {
@@ -535,10 +533,12 @@ blockquote span {
 
   .story {
     font-size: 18px;
+    gap: 12px;
+    padding-left: 16px;
   }
 
   .photo-frame {
-    width: 220px;
+    width: 260px;
   }
 
   .price-seal {
@@ -603,7 +603,7 @@ blockquote span {
     gap: 6px;
     border-radius: 16px;
     margin-inline: 0;
-    padding: 24px 14px 20px;
+    padding: 44px 14px 20px;
   }
 
   .hero-copy,
@@ -629,11 +629,6 @@ blockquote span {
     font-size: 17px;
   }
 
-  .story::first-letter {
-    margin-right: 5px;
-    font-size: 1.75em;
-  }
-
   .title-raffle {
     font-size: 64px;
   }
@@ -651,7 +646,12 @@ blockquote span {
   }
 
   .photo-frame {
-    width: min(100%, 224px);
+    width: min(100%, 244px);
+  }
+
+  .photo-frame::before {
+    inset: 14px 16px 4px;
+    filter: blur(7px);
   }
 
   .hero-media {
@@ -664,18 +664,18 @@ blockquote span {
   .price-seal {
     right: 2px;
     top: 136px;
-    width: 116px;
-    height: 116px;
+    width: 108px;
+    height: 108px;
     padding: 14px 10px;
   }
 
   .price-seal span {
-    max-width: 78px;
-    font-size: 10px;
+    max-width: 70px;
+    font-size: 9px;
   }
 
   .price-seal strong {
-    font-size: 21px;
+    font-size: 17px;
   }
 
   blockquote {
@@ -692,11 +692,13 @@ blockquote span {
   }
 
   .goal-card__values {
-    gap: 16px;
+    gap: 10px;
+    justify-content: space-between;
   }
 
   .goal-card__amount {
-    font-size: 23px;
+    font-size: 20px;
+    line-height: 1.05;
   }
 
   .goal-card p {
@@ -705,9 +707,9 @@ blockquote span {
 
   .decor-cap {
     left: 6px;
-    top: -8px;
-    width: 68px;
-    height: 52px;
+    top: 10px;
+    width: 64px;
+    height: 48px;
   }
 
   .decor-heart-one {
@@ -740,6 +742,7 @@ blockquote span {
 @media (max-width: 400px) {
   .poster-hero {
     padding-inline: 10px;
+    padding-top: 46px;
   }
 
   .title-raffle {
@@ -780,7 +783,11 @@ blockquote span {
   }
 
   .photo-frame {
-    width: 208px;
+    width: 226px;
+  }
+
+  .photo-frame::before {
+    inset: 12px 12px 2px;
   }
 
   .price-seal {
@@ -805,12 +812,36 @@ blockquote span {
   .price-seal {
     right: 6px;
     top: 142px;
-    width: 108px;
-    height: 108px;
+    width: 100px;
+    height: 100px;
+  }
+
+  .price-seal span {
+    max-width: 64px;
+    font-size: 8px;
   }
 
   .price-seal strong {
-    font-size: 19px;
+    font-size: 15px;
+  }
+
+  .goal-card__values {
+    gap: 8px;
+  }
+
+  .goal-card__label {
+    font-size: 10px;
+  }
+
+  .goal-card__amount {
+    font-size: 18px;
+  }
+
+  .decor-cap {
+    left: 4px;
+    top: 10px;
+    width: 58px;
+    height: 44px;
   }
 }
 </style>

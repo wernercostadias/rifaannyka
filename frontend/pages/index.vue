@@ -18,10 +18,15 @@
 
     <InfoCardsSection />
 
-    <LatestPurchasesSection :latest-purchases="latestPurchases" />
+    <LatestPurchasesSection
+      :latest-purchases="visibleLatestPurchases"
+      :show-load-more="showMoreLatestPurchases"
+      @show-more="loadMoreLatestPurchases"
+    />
 
     <PurchaseLookupModal
       :open="lookupModalOpen"
+      :search-type="lookupSearchType"
       :query="lookupQuery"
       :error="lookupError"
       :loading="lookupLoading"
@@ -32,7 +37,8 @@
       :format-purchase-date="formatPurchaseDate"
       @close="lookupModalOpen = false"
       @submit="lookupPurchases"
-      @update:query="lookupQuery = $event"
+      @update:search-type="updateLookupSearchType"
+      @update:query="updateLookupQuery"
     />
 
     <BuyerDetailsModal
@@ -112,6 +118,7 @@ const paymentModalOpen = ref(false)
 const lookupModalOpen = ref(false)
 const isMobileNumbers = ref(false)
 const visibleNumberCount = ref(Number.POSITIVE_INFINITY)
+const lookupSearchType = ref<'name' | 'cpf'>('name')
 const lookupQuery = ref('')
 const lookupLoading = ref(false)
 const lookupError = ref('')
@@ -122,6 +129,9 @@ const DESKTOP_INITIAL_NUMBERS = 70
 const DESKTOP_LOAD_STEP = 70
 const MOBILE_INITIAL_NUMBERS = 50
 const MOBILE_LOAD_STEP = 50
+const INITIAL_LATEST_PURCHASES = 10
+const LOAD_MORE_LATEST_PURCHASES = 10
+const visibleLatestPurchasesCount = ref(INITIAL_LATEST_PURCHASES)
 
 const buyer = reactive<BuyerFormData>({
   full_name: '',
@@ -153,6 +163,10 @@ const orderedNumbers = computed(() => {
     return left.number - right.number
   })
 })
+
+const visibleLatestPurchases = computed(() => latestPurchases.value.slice(0, visibleLatestPurchasesCount.value))
+
+const showMoreLatestPurchases = computed(() => latestPurchases.value.length > visibleLatestPurchasesCount.value)
 
 const visibleNumbers = computed(() => orderedNumbers.value.slice(0, visibleNumberCount.value))
 
@@ -240,8 +254,10 @@ const canSubmit = computed(() => {
 
 const canLookup = computed(() => {
   const query = lookupQuery.value.trim()
-  const digits = query.replace(/\D/g, '')
-  return query.length >= 3 || digits.length >= 4
+  if (lookupSearchType.value === 'cpf') {
+    return onlyDigits(query).length === 11
+  }
+  return query.length >= 3
 })
 
 let paymentStatusInterval: ReturnType<typeof setInterval> | null = null
@@ -303,10 +319,15 @@ async function loadLatestPurchases() {
     return
   }
   latestPurchases.value = await api(`/purchases/latest/?raffle_id=${raffle.value.id}`)
+  visibleLatestPurchasesCount.value = INITIAL_LATEST_PURCHASES
 }
 
 function openPurchaseLookup() {
+  lookupSearchType.value = 'name'
+  lookupQuery.value = ''
   lookupError.value = ''
+  lookupSearched.value = false
+  lookupResults.value = []
   lookupModalOpen.value = true
 }
 
@@ -425,6 +446,18 @@ function updateBuyerPhone(value: string) {
 
 function updateBuyerCpf(value: string) {
   buyer.cpf = formatCpf(value)
+}
+
+function updateLookupSearchType(value: 'name' | 'cpf') {
+  lookupSearchType.value = value
+  lookupQuery.value = ''
+  lookupError.value = ''
+  lookupSearched.value = false
+  lookupResults.value = []
+}
+
+function updateLookupQuery(value: string) {
+  lookupQuery.value = lookupSearchType.value === 'cpf' ? formatCpf(value) : value.replace(/\s+/g, ' ').replace(/^\s+/, '')
 }
 
 async function submitPurchase() {
@@ -569,10 +602,25 @@ async function lookupPurchases() {
   }
 
   const query = lookupQuery.value.trim()
-  const digits = query.replace(/\D/g, '')
+  if (lookupSearchType.value === 'name' && query.length < 3) {
+    lookupError.value = 'Informe pelo menos 3 letras do nome.'
+    lookupResults.value = []
+    lookupSearched.value = false
+    return
+  }
 
-  if (query.length < 3 && digits.length < 4) {
-    lookupError.value = 'Informe pelo menos 3 letras do nome ou 4 digitos do celular.'
+  if (lookupSearchType.value === 'cpf') {
+    const cpfError = validateCpf(query)
+    if (cpfError) {
+      lookupError.value = cpfError
+      lookupResults.value = []
+      lookupSearched.value = false
+      return
+    }
+  }
+
+  if (!query) {
+    lookupError.value = 'Informe os dados para buscar seus números.'
     lookupResults.value = []
     lookupSearched.value = false
     return
@@ -623,6 +671,13 @@ function syncNumberViewport() {
 function showMoreNumbers() {
   const step = isMobileNumbers.value ? MOBILE_LOAD_STEP : DESKTOP_LOAD_STEP
   visibleNumberCount.value = Math.min(visibleNumberCount.value + step, orderedNumbers.value.length)
+}
+
+function loadMoreLatestPurchases() {
+  visibleLatestPurchasesCount.value = Math.min(
+    visibleLatestPurchasesCount.value + LOAD_MORE_LATEST_PURCHASES,
+    latestPurchases.value.length,
+  )
 }
 </script>
 

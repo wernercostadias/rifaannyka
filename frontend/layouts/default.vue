@@ -44,8 +44,9 @@ function openPurchaseLookup() {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(255, 248, 250, 0.92);
-  border-bottom: 1px solid rgba(244, 143, 177, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 248, 250, 0.96), rgba(255, 251, 245, 0.92));
+  border-bottom: 1px solid rgba(33, 143, 139, 0.12);
   backdrop-filter: blur(10px);
 }
 
@@ -58,28 +59,49 @@ function openPurchaseLookup() {
 }
 
 .brand {
-  color: var(--color-highlight);
-  font-size: 18px;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(33, 143, 139, 0.22);
+  border-radius: var(--radius-pill);
+  background: rgba(250, 218, 221, 0.48);
+  color: #17345f;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 24px rgba(244, 143, 177, 0.1);
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.brand:hover {
+  background: rgba(250, 218, 221, 0.7);
+  border-color: rgba(33, 143, 139, 0.34);
+  color: #218f8b;
+  transform: translateY(-1px);
 }
 
 .header-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 0;
-  padding: 8px 12px;
+  min-height: 44px;
+  border: 1px solid rgba(23, 52, 95, 0.06);
+  padding: 0 18px;
   border-radius: var(--radius-pill);
-  background: rgba(212, 175, 55, 0.16);
-  color: #7c6318;
-  font-size: 13px;
-  font-weight: 600;
+  background: linear-gradient(135deg, #17345f, #218f8b);
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 14px 28px rgba(23, 52, 95, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .header-action:hover {
-  background: rgba(212, 175, 55, 0.26);
+  filter: brightness(1.04);
+  box-shadow: 0 16px 32px rgba(23, 52, 95, 0.24);
   transform: translateY(-1px);
 }
 
@@ -100,12 +122,15 @@ main {
   }
 
   .brand {
-    font-size: 16px;
+    min-height: 38px;
+    padding-inline: 14px;
+    font-size: 14px;
   }
 
   .header-action {
-    padding: 6px 10px;
-    font-size: 11px;
+    min-height: 38px;
+    padding-inline: 14px;
+    font-size: 12px;
     text-align: center;
   }
 

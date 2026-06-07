@@ -7,12 +7,47 @@
   >
     <form class="modal-form" @submit.prevent="$emit('submit')">
       <p class="muted">
-        Digite seu nome completo ou celular para conferir seus números e quando a reserva ou compra foi feita.
+        Escolha como deseja buscar para conferir seus números e quando a reserva ou compra foi feita.
       </p>
+
+      <div class="lookup-methods" role="radiogroup" aria-label="Forma de busca">
+        <button
+          type="button"
+          class="lookup-method"
+          :class="{ 'lookup-method--active': searchType === 'name' }"
+          @click="$emit('update:search-type', 'name')"
+        >
+          Buscar por nome
+        </button>
+        <button
+          type="button"
+          class="lookup-method"
+          :class="{ 'lookup-method--active': searchType === 'cpf' }"
+          @click="$emit('update:search-type', 'cpf')"
+        >
+          Buscar por CPF
+        </button>
+      </div>
+
       <BaseInput
+        v-if="searchType === 'name'"
         :model-value="query"
-        label="Nome completo ou celular"
-        placeholder="Ex.: Ana Silva ou 91999991234"
+        label="Nome completo"
+        placeholder="Ex.: Ana Silva"
+        autocomplete="name"
+        :error="error"
+        @update:model-value="$emit('update:query', $event)"
+      />
+
+      <BaseInput
+        v-else
+        :model-value="query"
+        label="CPF"
+        name="lookup_cpf"
+        placeholder="000.000.000-00"
+        inputmode="numeric"
+        autocomplete="off"
+        :maxlength="14"
         :error="error"
         @update:model-value="$emit('update:query', $event)"
       />
@@ -56,6 +91,7 @@ import type { LookupPurchase } from '~/types/raffle'
 
 defineProps<{
   open: boolean
+  searchType: 'name' | 'cpf'
   query: string
   error: string
   loading: boolean
@@ -69,6 +105,7 @@ defineProps<{
 defineEmits<{
   close: []
   submit: []
+  'update:search-type': [value: 'name' | 'cpf']
   'update:query': [value: string]
 }>()
 </script>
@@ -82,6 +119,35 @@ defineEmits<{
 .lookup-results {
   display: grid;
   gap: 14px;
+}
+
+.lookup-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lookup-method {
+  min-height: 46px;
+  border: 1px solid rgba(33, 143, 139, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.82);
+  color: #17345f;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.lookup-method:hover {
+  transform: translateY(-1px);
+  border-color: rgba(33, 143, 139, 0.3);
+  background: rgba(250, 218, 221, 0.3);
+}
+
+.lookup-method--active {
+  border-color: rgba(33, 143, 139, 0.42);
+  background: rgba(33, 143, 139, 0.1);
+  box-shadow: 0 0 0 3px rgba(33, 143, 139, 0.08);
 }
 
 .lookup-card {
@@ -116,6 +182,10 @@ defineEmits<{
 }
 
 @media (max-width: 720px) {
+  .lookup-methods {
+    grid-template-columns: 1fr;
+  }
+
   .lookup-card__header {
     align-items: stretch;
     flex-direction: column;
