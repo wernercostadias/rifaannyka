@@ -1,28 +1,36 @@
 <template>
   <div class="container page">
-    <RaffleHero :raffle="raffle" @choose="scrollToNumbers" />
+    <div data-aos="fade-right">
+      <RaffleHero :raffle="raffle" @choose="scrollToNumbers" />
+    </div>
 
-    <NumbersSection
-      ref="numbersSection"
-      :raffle="raffle"
-      :pending="pending"
-      :error-message="errorMessage"
-      :visible-numbers="visibleNumbers"
-      :selected-numbers="selectedNumbers"
-      :show-load-more="showLoadMore"
-      :total-amount="totalAmount"
-      @toggle-number="toggleNumber"
-      @show-more="showMoreNumbers"
-      @open-buyer-modal="buyerModalOpen = true"
-    />
+    <div data-aos="fade-left" data-aos-delay="80">
+      <NumbersSection
+        ref="numbersSection"
+        :raffle="raffle"
+        :pending="pending"
+        :error-message="errorMessage"
+        :visible-numbers="visibleNumbers"
+        :selected-numbers="selectedNumbers"
+        :show-load-more="showLoadMore"
+        :total-amount="totalAmount"
+        @toggle-number="toggleNumber"
+        @show-more="showMoreNumbers"
+        @open-buyer-modal="buyerModalOpen = true"
+      />
+    </div>
 
-    <InfoCardsSection />
+    <div data-aos="fade-right" data-aos-delay="140">
+      <InfoCardsSection />
+    </div>
 
-    <LatestPurchasesSection
-      :latest-purchases="visibleLatestPurchases"
-      :show-load-more="showMoreLatestPurchases"
-      @show-more="loadMoreLatestPurchases"
-    />
+    <div data-aos="fade-up" data-aos-delay="180">
+      <LatestPurchasesSection
+        :latest-purchases="visibleLatestPurchases"
+        :show-load-more="showMoreLatestPurchases"
+        @show-more="loadMoreLatestPurchases"
+      />
+    </div>
 
     <PurchaseLookupModal
       :open="lookupModalOpen"

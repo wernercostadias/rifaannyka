@@ -14,14 +14,17 @@
     </main>
 
     <footer class="site-footer">
-      <div class="container">
-        Obrigado por fazer parte dessa corrente do bem.
+      <div class="container footer-content">
+        <p class="footer-copy">© {{ currentYear }} Rifa Estudantil da Annyka</p>
+        <p class="footer-credit">Desenvolvido por Werner C. Dias</p>
       </div>
     </footer>
   </div>
 </template>
  
 <script setup lang="ts">
+const currentYear = new Date().getFullYear()
+
 function scrollToTop() {
   if (window.location.pathname === '/') {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -115,6 +118,25 @@ main {
   text-align: center;
 }
 
+.footer-content {
+  display: grid;
+  gap: 6px;
+}
+
+.footer-copy,
+.footer-credit {
+  margin: 0;
+}
+
+.footer-copy {
+  font-size: 14px;
+}
+
+.footer-credit {
+  font-size: 13px;
+  opacity: 0.88;
+}
+
 @media (max-width: 560px) {
   .header-content {
     min-height: 58px;
@@ -136,7 +158,14 @@ main {
 
   .site-footer {
     padding: 24px 0;
-    font-size: 14px;
+  }
+
+  .footer-copy {
+    font-size: 13px;
+  }
+
+  .footer-credit {
+    font-size: 12px;
   }
 }
 </style>

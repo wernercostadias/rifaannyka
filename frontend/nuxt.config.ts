@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-06-04',
-  css: ['~/assets/css/main.css'],
+  css: ['aos/dist/aos.css', '~/assets/css/main.css'],
   app: {
     head: {
       title: 'Rifa Estudantil da Annyka',
