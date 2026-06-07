@@ -70,7 +70,7 @@ class PurchaseViewSet(GenericViewSet):
         queryset = self.get_queryset().filter(status__in=[Purchase.Status.RESERVED, Purchase.Status.PAID])
         if raffle_id:
             queryset = queryset.filter(raffle_id=raffle_id)
-        queryset = queryset.order_by("-created_at")[:8]
+        queryset = queryset.order_by("-created_at")[:50]
         return Response(PublicPurchaseSerializer(queryset, many=True).data)
 
     @action(detail=False, methods=["get"], url_path="lookup")
