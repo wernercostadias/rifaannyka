@@ -54,8 +54,10 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                "Compras verificadas: "
-                f"{len(stale_purchases)} | pagamentos sincronizados: {synced_payments} | "
-                f"compras confirmadas: {confirmed_purchases} | compras expiradas: {expired_purchases}"
+                "Resumo: "
+                f"{len(stale_purchases)} reservas verificadas | "
+                f"{synced_payments} pagamentos consultados | "
+                f"{confirmed_purchases} compras confirmadas | "
+                f"{expired_purchases} reservas expiradas"
             )
         )

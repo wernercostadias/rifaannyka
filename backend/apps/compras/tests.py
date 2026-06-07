@@ -15,7 +15,7 @@ from apps.rifa.services import activate_raffle
 
 from .models import Purchase
 from .serializers import BuyerSerializer
-from .services import create_purchase, expire_purchase
+from .services import confirm_purchase_payment, create_purchase, expire_purchase
 
 
 class PurchaseServiceTests(TestCase):
@@ -71,7 +71,7 @@ class PurchaseServiceTests(TestCase):
             2,
         )
 
-    def test_buyer_serializer_accepts_full_name_without_email(self):
+    def test_buyer_serializer_requires_email(self):
         serializer = BuyerSerializer(
             data={
                 "full_name": "Ana Maria Silva",
@@ -80,10 +80,8 @@ class PurchaseServiceTests(TestCase):
             }
         )
 
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data["first_name"], "Ana")
-        self.assertEqual(serializer.validated_data["last_name"], "Maria Silva")
-        self.assertEqual(serializer.validated_data["email"], "comprador-12345678909@testuser.com")
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("email", serializer.errors)
 
 
 class PurchaseLookupApiTests(TestCase):
@@ -197,7 +195,7 @@ class ExpireStalePurchasesCommandTests(TestCase):
             RaffleNumber.objects.filter(raffle=self.raffle, number__in=[1, 2], status=RaffleNumber.Status.AVAILABLE).count(),
             2,
         )
-        self.assertIn("compras expiradas: 1", output.getvalue().lower())
+        self.assertIn("1 reservas expiradas", output.getvalue().lower())
 
     @patch("apps.compras.management.commands.expire_stale_purchases.refresh_payment_status")
     def test_command_keeps_purchase_paid_when_sync_confirms_payment(self, refresh_payment_status_mock):
@@ -224,7 +222,12 @@ class ExpireStalePurchasesCommandTests(TestCase):
         )
 
         def sync_as_paid(current_payment):
-            return confirm_payment(current_payment)
+            current_payment.status = Payment.Status.PAID
+            current_payment.paid_at = timezone.now()
+            current_payment.save(update_fields=["status", "paid_at", "updated_at"])
+            confirm_purchase_payment(current_payment.purchase, payment_reference=str(current_payment.id))
+            current_payment.refresh_from_db()
+            return current_payment
 
         refresh_payment_status_mock.side_effect = sync_as_paid
 
@@ -239,4 +242,4 @@ class ExpireStalePurchasesCommandTests(TestCase):
             RaffleNumber.objects.filter(raffle=self.raffle, number__in=[3, 4], status=RaffleNumber.Status.PAID).count(),
             2,
         )
-        self.assertIn("compras confirmadas: 1", output.getvalue().lower())
+        self.assertIn("1 compras confirmadas", output.getvalue().lower())
