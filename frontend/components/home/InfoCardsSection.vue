@@ -116,9 +116,10 @@
 .paint-ribbon {
   position: relative;
   z-index: 2;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  margin: 4px 0 20px 64px;
+  margin: 4px auto 20px;
+  width: fit-content;
   min-height: 48px;
   background: linear-gradient(90deg, #2da1a0 0%, #23918f 55%, #2ca7a4 100%);
   color: white;
@@ -243,20 +244,24 @@
   border: 2px solid rgba(128, 212, 216, 0.45);
   border-radius: 24px;
   background: linear-gradient(180deg, rgba(232, 250, 251, 0.96), rgba(236, 249, 250, 0.86));
-  padding: 26px 30px 26px 34px;
+  padding: 38px 30px 26px 34px;
 }
 
 .support-title {
+  margin: 0 auto 8px;
   max-width: 360px;
+  text-align: center;
   font-size: 24px;
   line-height: 1.1;
 }
 
 .support-text {
-  margin: 20px 0 0;
+  margin: 20px auto 0;
+  max-width: 420px;
   color: #17345f;
   font-size: 18px;
   line-height: 1.48;
+  text-align: center;
 }
 
 .thanks {
@@ -266,6 +271,7 @@
   font-family: "Parisienne", cursive;
   font-size: 42px;
   font-weight: 400;
+  text-align: center;
 }
 
 .support-heart {
@@ -322,7 +328,7 @@
   }
 
   .paint-ribbon {
-    margin: 10px 0 18px 46px;
+    margin: 14px auto 18px;
     min-height: 38px;
     padding: 0 18px;
     font-size: 18px;
@@ -368,7 +374,7 @@
   }
 
   .support-frame {
-    padding: 18px 18px 22px 20px;
+    padding: 34px 18px 22px;
   }
 
   .thanks {
