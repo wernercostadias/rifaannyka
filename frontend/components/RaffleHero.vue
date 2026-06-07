@@ -96,19 +96,24 @@ const props = defineProps<{
 
 const heroImage = '/images/img.png'
 
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+})
+
 const formattedPrice = computed(() => {
   const price = Number(props.raffle?.price_per_number || 0)
-  return `R$ ${price.toFixed(2).replace('.', ',')}`
+  return currencyFormatter.format(price)
 })
 
 const formattedGoalAmount = computed(() => {
   const amount = Number(props.raffle?.goal_amount || 0)
-  return `R$ ${amount.toFixed(2).replace('.', ',')}`
+  return currencyFormatter.format(amount)
 })
 
 const formattedRaisedAmount = computed(() => {
   const amount = Number(props.raffle?.raised_amount || 0)
-  return `R$ ${amount.toFixed(2).replace('.', ',')}`
+  return currencyFormatter.format(amount)
 })
 
 const soldCountLabel = computed(() => {
@@ -388,6 +393,7 @@ blockquote span {
   font-size: 30px;
   font-weight: 900;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .goal-card p {
