@@ -11,6 +11,7 @@ env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, []),
     CORS_ALLOWED_ORIGINS=(list, []),
+    CSRF_TRUSTED_ORIGINS=(list, []),
     RESERVATION_MINUTES=(int, 15),
     DATABASE_URL=(str, ""),
     POSTGRES_HOST=(str, ""),
@@ -114,6 +115,11 @@ REST_FRAMEWORK = {
 
 CORS_ALLOWED_ORIGINS = env(
     "CORS_ALLOWED_ORIGINS",
+    default=["http://localhost:3000", "http://127.0.0.1:3000"],
+)
+
+CSRF_TRUSTED_ORIGINS = env(
+    "CSRF_TRUSTED_ORIGINS",
     default=["http://localhost:3000", "http://127.0.0.1:3000"],
 )
 

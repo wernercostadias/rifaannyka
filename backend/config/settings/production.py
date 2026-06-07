@@ -14,3 +14,8 @@ if not database_url:
 DATABASES = {
     "default": env.db_url_config(database_url)  # noqa: F405
 }
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
