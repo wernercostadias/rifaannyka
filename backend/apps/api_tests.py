@@ -232,6 +232,10 @@ def test_retrieve_purchase_endpoint_returns_purchase(api_client, reserved_purcha
     assert response.status_code == 200
     assert response.data["reference"] == str(reserved_purchase.reference)
     assert response.data["numbers"] == [1, 2]
+    assert response.data["buyer"] == {
+        "first_name": "Ana",
+        "last_name": "Silva",
+    }
 
 
 @pytest.mark.django_db
@@ -251,7 +255,17 @@ def test_purchase_lookup_endpoint_finds_purchase_by_name(api_client, reserved_pu
     assert response.status_code == 200
     assert len(response.data) == 1
     assert response.data[0]["buyer_name"] == "Ana Silva"
+    assert response.data[0]["buyer_phone"] == "91*****34"
     assert response.data[0]["numbers"] == [1, 2]
+
+
+@pytest.mark.django_db
+def test_purchase_lookup_endpoint_finds_purchase_by_cpf_digits(api_client, reserved_purchase):
+    response = api_client.get(f"/api/v1/purchases/lookup/?raffle_id={reserved_purchase.raffle_id}&search=8909")
+
+    assert response.status_code == 200
+    assert len(response.data) == 1
+    assert response.data[0]["buyer_name"] == "Ana Silva"
 
 
 @pytest.mark.django_db
@@ -274,7 +288,9 @@ def test_create_payment_endpoint_creates_pending_payment(api_client, reserved_pu
 def test_retrieve_payment_endpoint_returns_payment(api_client, reserved_purchase):
     payment = create_payment(purchase=reserved_purchase)
 
-    response = api_client.get(f"/api/v1/payments/{payment.id}/")
+    response = api_client.get(
+        f"/api/v1/payments/{payment.id}/?purchase_reference={reserved_purchase.reference}"
+    )
 
     assert response.status_code == 200
     assert response.data["id"] == payment.id
@@ -285,7 +301,9 @@ def test_retrieve_payment_endpoint_returns_payment(api_client, reserved_purchase
 def test_payment_status_endpoint_returns_payment_and_purchase(api_client, reserved_purchase):
     payment = create_payment(purchase=reserved_purchase)
 
-    response = api_client.get(f"/api/v1/payments/{payment.id}/status/")
+    response = api_client.get(
+        f"/api/v1/payments/{payment.id}/status/?purchase_reference={reserved_purchase.reference}"
+    )
 
     assert response.status_code == 200
     assert response.data["payment"]["id"] == payment.id
@@ -298,10 +316,21 @@ def test_payment_status_endpoint_expires_purchase_when_reservation_is_stale(api_
     reserved_purchase.reservation_expires_at = timezone.now() - timedelta(minutes=1)
     reserved_purchase.save(update_fields=["reservation_expires_at"])
 
-    response = api_client.get(f"/api/v1/payments/{payment.id}/status/")
+    response = api_client.get(
+        f"/api/v1/payments/{payment.id}/status/?purchase_reference={reserved_purchase.reference}"
+    )
 
     assert response.status_code == 200
     assert response.data["purchase"]["status"] == Purchase.Status.EXPIRED
+
+
+@pytest.mark.django_db
+def test_payment_detail_endpoint_requires_matching_purchase_reference(api_client, reserved_purchase):
+    payment = create_payment(purchase=reserved_purchase)
+
+    response = api_client.get(f"/api/v1/payments/{payment.id}/")
+
+    assert response.status_code == 404
 
 
 @pytest.mark.django_db
@@ -310,10 +339,11 @@ def test_confirm_local_payment_endpoint_marks_payment_as_paid(api_client, reserv
 
     response = api_client.post(f"/api/v1/payments/{payment.id}/confirm-local/")
 
-    assert response.status_code == 200
-    assert response.data["status"] == Payment.Status.PAID
+    assert response.status_code == 404
+    payment.refresh_from_db()
     reserved_purchase.refresh_from_db()
-    assert reserved_purchase.status == Purchase.Status.PAID
+    assert payment.status == Payment.Status.PENDING
+    assert reserved_purchase.status == Purchase.Status.RESERVED
 
 
 @pytest.mark.django_db
@@ -327,14 +357,13 @@ def test_confirm_local_payment_endpoint_rejects_expired_purchase(api_client, res
     payment.refresh_from_db()
     reserved_purchase.refresh_from_db()
 
-    assert response.status_code == 400
-    assert response.data[0] == "A reserva expirou ou nao pode mais ser confirmada."
+    assert response.status_code == 404
     assert payment.status == Payment.Status.PENDING
-    assert reserved_purchase.status == Purchase.Status.EXPIRED
+    assert reserved_purchase.status == Purchase.Status.RESERVED
 
 
 @pytest.mark.django_db
-def test_local_webhook_endpoint_confirms_payment(api_client, reserved_purchase):
+def test_non_mercadopago_webhook_is_rejected(api_client, reserved_purchase):
     payment = create_payment(purchase=reserved_purchase)
 
     response = api_client.post(
@@ -346,10 +375,10 @@ def test_local_webhook_endpoint_confirms_payment(api_client, reserved_purchase):
         format="json",
     )
 
-    assert response.status_code == 200
-    assert response.data["processed"] is True
+    assert response.status_code == 400
+    assert response.data["provider"] == "Webhook nao suportado."
     payment.refresh_from_db()
-    assert payment.status == Payment.Status.PAID
+    assert payment.status == Payment.Status.PENDING
 
 
 @pytest.mark.django_db

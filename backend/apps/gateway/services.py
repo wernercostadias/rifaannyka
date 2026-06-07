@@ -419,36 +419,28 @@ def _sync_mercadopago_order(resource_id: str) -> bool:
 def process_webhook(*, provider: str, payload: dict, headers: dict | None = None, query_params: dict | None = None) -> PaymentWebhookLog:
     headers = headers or {}
     query_params = query_params or {}
+
+    if provider != "mercadopago":
+        raise ValidationError("Webhook provider nao suportado.")
+
     log_payload = {
         "payload": payload,
         "headers": headers,
         "query_params": query_params,
     }
 
-    if provider == "mercadopago":
-        is_valid, metadata = validate_mercadopago_signature(
-            payload=payload,
-            headers=headers,
-            query_params=query_params,
-        )
-        log_payload["signature"] = metadata
-        log = PaymentWebhookLog.objects.create(provider=provider, payload=log_payload)
-        if not is_valid:
-            return log
-
-        resource_id = str((payload.get("data") or {}).get("id") or payload.get("id") or "")
-        if resource_id:
-            log.processed = _sync_mercadopago_order(resource_id)
-            log.save(update_fields=["processed", "updated_at"])
+    is_valid, metadata = validate_mercadopago_signature(
+        payload=payload,
+        headers=headers,
+        query_params=query_params,
+    )
+    log_payload["signature"] = metadata
+    log = PaymentWebhookLog.objects.create(provider=provider, payload=log_payload)
+    if not is_valid:
         return log
 
-    log = PaymentWebhookLog.objects.create(provider=provider, payload=log_payload)
-
-    payment_id = payload.get("payment_id")
-    if payment_id:
-        payment = Payment.objects.filter(id=payment_id).first()
-        if payment and payload.get("status") == Payment.Status.PAID:
-            confirm_payment(payment)
-            log.processed = True
-            log.save(update_fields=["processed", "updated_at"])
+    resource_id = str((payload.get("data") or {}).get("id") or payload.get("id") or "")
+    if resource_id:
+        log.processed = _sync_mercadopago_order(resource_id)
+        log.save(update_fields=["processed", "updated_at"])
     return log

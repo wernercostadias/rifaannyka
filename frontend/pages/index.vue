@@ -528,11 +528,15 @@ async function copyPix() {
 }
 
 async function refreshPaymentStatus() {
-  if (!payment.value) {
+  if (!payment.value || !purchase.value) {
     return
   }
 
-  const response = await api(`/payments/${payment.value.id}/status/`)
+  const response = await api(`/payments/${payment.value.id}/status/`, {
+    query: {
+      purchase_reference: purchase.value.reference,
+    },
+  })
   payment.value = response.payment
   purchase.value = response.purchase
 

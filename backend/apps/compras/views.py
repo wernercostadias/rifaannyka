@@ -85,7 +85,7 @@ class PurchaseViewSet(GenericViewSet):
                 expire_stale_purchases(raffle=active_raffle)
 
         if len(search) < 3 and len(digits) < 4:
-            raise ValidationError({"search": "Informe pelo menos 3 letras do nome ou 4 digitos do celular."})
+            raise ValidationError({"search": "Informe pelo menos 3 letras do nome ou 4 digitos do CPF."})
 
         queryset = self.get_queryset().filter(status__in=[Purchase.Status.RESERVED, Purchase.Status.PAID])
         if raffle_id:
@@ -94,12 +94,12 @@ class PurchaseViewSet(GenericViewSet):
         matches = []
         for purchase in queryset.order_by("-created_at"):
             buyer_name = f"{purchase.buyer.first_name} {purchase.buyer.last_name}".strip().casefold()
-            buyer_phone = "".join(char for char in purchase.buyer.phone if char.isdigit())
+            buyer_cpf = "".join(char for char in purchase.buyer.cpf if char.isdigit())
 
             matches_name = len(search) >= 3 and search in buyer_name
-            matches_phone = len(digits) >= 4 and digits in buyer_phone
+            matches_cpf = len(digits) >= 4 and digits in buyer_cpf
 
-            if matches_name or matches_phone:
+            if matches_name or matches_cpf:
                 matches.append(purchase)
 
             if len(matches) >= 20:

@@ -63,8 +63,14 @@ class PurchaseCreateSerializer(serializers.Serializer):
         )
 
 
+class PurchaseBuyerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Buyer
+        fields = ["first_name", "last_name"]
+
+
 class PurchaseSerializer(serializers.ModelSerializer):
-    buyer = BuyerSerializer()
+    buyer = PurchaseBuyerSerializer()
     numbers = serializers.SerializerMethodField()
 
     class Meta:
@@ -109,7 +115,7 @@ class PublicPurchaseSerializer(serializers.ModelSerializer):
 
 class PurchaseLookupSerializer(serializers.ModelSerializer):
     buyer_name = serializers.SerializerMethodField()
-    buyer_phone = serializers.CharField(source="buyer.phone")
+    buyer_phone = serializers.SerializerMethodField()
     numbers = serializers.SerializerMethodField()
     status_label = serializers.CharField(source="get_status_display")
 
@@ -120,6 +126,12 @@ class PurchaseLookupSerializer(serializers.ModelSerializer):
     def get_buyer_name(self, obj):
         full_name = f"{obj.buyer.first_name} {obj.buyer.last_name}".strip()
         return full_name or obj.buyer.first_name
+
+    def get_buyer_phone(self, obj):
+        phone = "".join(char for char in obj.buyer.phone if char.isdigit())
+        if len(phone) < 4:
+            return "***"
+        return f"{phone[:2]}*****{phone[-2:]}"
 
     def get_numbers(self, obj):
         return list(obj.numbers.order_by("number").values_list("number", flat=True))

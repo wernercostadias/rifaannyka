@@ -133,12 +133,12 @@ class PurchaseLookupApiTests(TestCase):
         self.assertEqual(response.data[0]["buyer_name"], "Ana Silva")
         self.assertEqual(response.data[0]["numbers"], [1, 2])
 
-    def test_lookup_finds_purchase_by_phone_digits(self):
-        response = self.client.get(f"/api/v1/purchases/lookup/?raffle_id={self.raffle.id}&search=1234")
+    def test_lookup_finds_purchase_by_cpf_digits(self):
+        response = self.client.get(f"/api/v1/purchases/lookup/?raffle_id={self.raffle.id}&search=8909")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["buyer_phone"], "(91) 99999-1234")
+        self.assertEqual(response.data[0]["buyer_phone"], "91*****34")
 
     def test_lookup_requires_minimum_search_length(self):
         response = self.client.get(f"/api/v1/purchases/lookup/?raffle_id={self.raffle.id}&search=an")

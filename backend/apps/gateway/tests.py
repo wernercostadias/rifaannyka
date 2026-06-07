@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
 from apps.compras.models import Purchase
 from apps.compras.services import create_purchase
@@ -279,3 +280,12 @@ class MercadoPagoWebhookProcessingTests(TestCase):
         self.purchase.refresh_from_db()
         self.assertEqual(self.payment.status, Payment.Status.CANCELED)
         self.assertEqual(self.purchase.status, Purchase.Status.RESERVED)
+
+    def test_process_webhook_rejects_unsupported_provider(self):
+        with self.assertRaisesMessage(ValidationError, "Webhook provider nao suportado."):
+            process_webhook(
+                provider="local_pix",
+                payload={"payment_id": self.payment.id, "status": Payment.Status.PAID},
+                headers={},
+                query_params={},
+            )

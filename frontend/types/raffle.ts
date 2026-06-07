@@ -43,9 +43,6 @@ export type PurchaseResponse = {
   buyer: {
     first_name: string
     last_name: string
-    email: string
-    phone: string
-    cpf: string
   }
   numbers: number[]
   total_amount: string

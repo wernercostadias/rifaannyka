@@ -22,9 +22,9 @@ class Command(BaseCommand):
                     "essencial para seus estudos e para o estagio na area do curso "
                     "de especializacao no IEMA."
                 ),
-                "goal_amount": 3000,
+                "goal_amount": 3500,
                 "price_per_number": 5,
-                "total_numbers": 600,
+                "total_numbers": 700,
                 "start_date": now,
                 "end_date": now + timedelta(days=30),
                 "draw_date": now + timedelta(days=31),
