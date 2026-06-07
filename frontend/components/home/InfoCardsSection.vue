@@ -16,7 +16,7 @@
           <div class="prize-block">
             <h3>1º Prêmio</h3>
             <ul class="heart-list">
-              <li>Um kit de pincéis com hidratação</li>
+              <li>Um dia de princesa no salão</li>
               <li>Escova</li>
               <li>Prancha</li>
               <li>Manicure e pedicure</li>
@@ -37,7 +37,7 @@
         </div>
 
         <div class="prize-art">
-          <img src="/images/kit-escova.png" alt="Kit de pincéis, escova, prancha e acessórios" class="prize-image prize-image--top">
+          <img src="/images/kit-escova.png" alt="Dia de princesa prancha e acessórios" class="prize-image prize-image--top">
           <img src="/images/kit-boticario.png" alt="Kit com body splash e loção hidratante" class="prize-image prize-image--bottom">
         </div>
       </div>
