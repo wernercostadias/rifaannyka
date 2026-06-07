@@ -68,7 +68,7 @@
             <strong class="goal-card__amount">{{ formattedRaisedAmount }}</strong>
           </div>
           <div class="goal-card__group">
-            <span class="goal-card__label">Meta</span>
+            <span class="goal-card__label">Meta</span> 
             <strong class="goal-card__amount">{{ formattedGoalAmount }}</strong>
           </div>
         </div>
