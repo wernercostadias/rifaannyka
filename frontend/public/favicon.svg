@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E3F73"/>
+      <stop offset="1" stop-color="#2B9A98"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="21" y1="19" x2="44" y2="42" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F48BB2"/>
+      <stop offset="1" stop-color="#FFD8E6"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="4" y="4" width="56" height="56" rx="18" fill="#FFFDFC"/>
+  <rect x="4" y="4" width="56" height="56" rx="18" stroke="url(#bg)" stroke-width="2.5"/>
+
+  <path
+    d="M32 14L49 22L32 30L15 22L32 14Z"
+    fill="url(#bg)"
+  />
+  <path
+    d="M21 26.5V35.4C21 36.4 21.6 37.3 22.6 37.7C28.6 40.3 35.4 40.3 41.4 37.7C42.4 37.3 43 36.4 43 35.4V26.5"
+    stroke="#2B9A98"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+  <path
+    d="M49 22V34"
+    stroke="#1E3F73"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+  <circle cx="49" cy="37.5" r="3.5" fill="#F48BB2"/>
+
+  <path
+    d="M32 42.5C33.7 39.9 35.9 38.6 38.4 38.6C41.5 38.6 43.8 40.9 43.8 44C43.8 49.2 38.8 52.1 33.3 55.5L32 56.3L30.7 55.5C25.2 52.1 20.2 49.2 20.2 44C20.2 40.9 22.5 38.6 25.6 38.6C28.1 38.6 30.3 39.9 32 42.5Z"
+    fill="url(#accent)"
+    stroke="#1E3F73"
+    stroke-width="1.6"
+    stroke-linejoin="round"
+  />
+</svg>
