@@ -22,6 +22,7 @@
               <li>Manicure e pedicure</li>
               <li>Design simples de sobrancelha</li>
             </ul>
+            <img src="/images/kit-escova.png" alt="Kit de pincéis, escova, prancha e acessórios" class="prize-image prize-image--mobile">
           </div>
 
           <div class="prize-divider"></div>
@@ -31,6 +32,7 @@
             <ul class="heart-list">
               <li>Um kit Boticário Body Splash + Loção Hidratante</li>
             </ul>
+            <img src="/images/kit-boticario.png" alt="Kit com body splash e loção hidratante" class="prize-image prize-image--mobile prize-image--mobile-second">
           </div>
         </div>
 
@@ -219,6 +221,10 @@
   background: rgba(255, 251, 243, 0.95);
 }
 
+.prize-image--mobile {
+  display: none;
+}
+
 .prize-image--top {
   max-width: 232px;
 }
@@ -326,9 +332,12 @@
     width: 44px;
   }
 
-  .prize-panel,
-  .prize-art {
+  .prize-panel {
     grid-template-columns: 1fr;
+  }
+
+  .prize-art {
+    display: none;
   }
 
   .prize-block h3,
@@ -339,6 +348,23 @@
   .heart-list,
   .support-text {
     font-size: 15px;
+  }
+
+  .prize-block {
+    display: grid;
+    gap: 10px;
+  }
+
+  .prize-image--mobile {
+    display: block;
+    width: min(100%, 210px);
+    margin: 6px auto 0;
+    padding: 8px;
+    border-radius: 20px;
+  }
+
+  .prize-image--mobile-second {
+    width: min(100%, 190px);
   }
 
   .support-frame {

@@ -64,7 +64,7 @@
       <div class="goal-card">
         <div class="goal-card__values">
           <div class="goal-card__group">
-            <span class="goal-card__label">Valor arrecadado</span>
+            <span class="goal-card__label">Arrecadado</span>
             <strong class="goal-card__amount">{{ formattedRaisedAmount }}</strong>
           </div>
           <div class="goal-card__group">
@@ -133,10 +133,7 @@ const soldCountLabel = computed(() => {
   min-height: 430px;
   padding: 44px 34px 28px;
   border-radius: 18px;
-  background:
-    radial-gradient(circle at 85% 10%, rgba(250, 218, 221, 0.7), transparent 24%),
-    radial-gradient(circle at 12% 88%, rgba(200, 162, 200, 0.18), transparent 26%),
-    #fffdf9;
+  background: transparent;
   color: #17345f;
   overflow: hidden;
 }
