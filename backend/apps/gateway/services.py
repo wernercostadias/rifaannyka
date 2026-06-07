@@ -235,10 +235,18 @@ def refresh_payment_status(payment: Payment) -> Payment:
 
 
 def confirm_payment(payment: Payment) -> Payment:
+    purchase = Purchase.objects.get(id=payment.purchase_id)
+    expire_purchase(purchase)
+
     with transaction.atomic():
         payment = Payment.objects.select_for_update().get(id=payment.id)
+        payment.refresh_from_db()
+
         if payment.status == Payment.Status.PAID:
             return payment
+        if payment.purchase.status != Purchase.Status.RESERVED:
+            raise ValidationError("A reserva expirou ou nao pode mais ser confirmada.")
+
         payment.status = Payment.Status.PAID
         payment.paid_at = timezone.now()
         payment.save(update_fields=["status", "paid_at", "updated_at"])

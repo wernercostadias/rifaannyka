@@ -93,9 +93,8 @@ class PublicPurchaseSerializer(serializers.ModelSerializer):
         fields = ["buyer_name", "buyer_phone", "numbers", "status", "created_at"]
 
     def get_buyer_name(self, obj):
-        if obj.buyer.last_name:
-            return f"{obj.buyer.first_name} {obj.buyer.last_name[:1]}."
-        return obj.buyer.first_name
+        full_name = f"{obj.buyer.first_name} {obj.buyer.last_name}".strip()
+        return full_name or obj.buyer.first_name
 
     def get_buyer_phone(self, obj):
         phone = "".join(char for char in obj.buyer.phone if char.isdigit())

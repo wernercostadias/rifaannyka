@@ -35,6 +35,14 @@ Se quiser usar Postgres localmente, defina `DATABASE_URL` no `.env`. Se nao defi
 cd frontend
 npm install
 npm run dev
+
+Para desenvolvimento local do frontend, crie ou ajuste `frontend/.env`:
+
+```env
+NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000/api/v1
+NUXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=
+NUXT_PUBLIC_ENABLE_PAYMENT_SIMULATION=true
+```
 ```
 
 App local: `http://localhost:3000/`

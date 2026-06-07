@@ -236,7 +236,7 @@ def test_latest_purchases_endpoint_returns_public_payload(api_client, reserved_p
 
     assert response.status_code == 200
     assert len(response.data) == 1
-    assert response.data[0]["buyer_name"] == "Ana S."
+    assert response.data[0]["buyer_name"] == "Ana Silva"
     assert response.data[0]["buyer_phone"] == "91*****34"
 
 
@@ -310,6 +310,23 @@ def test_confirm_local_payment_endpoint_marks_payment_as_paid(api_client, reserv
     assert response.data["status"] == Payment.Status.PAID
     reserved_purchase.refresh_from_db()
     assert reserved_purchase.status == Purchase.Status.PAID
+
+
+@pytest.mark.django_db
+def test_confirm_local_payment_endpoint_rejects_expired_purchase(api_client, reserved_purchase):
+    payment = create_payment(purchase=reserved_purchase)
+    reserved_purchase.reservation_expires_at = timezone.now() - timedelta(minutes=1)
+    reserved_purchase.save(update_fields=["reservation_expires_at"])
+
+    response = api_client.post(f"/api/v1/payments/{payment.id}/confirm-local/")
+
+    payment.refresh_from_db()
+    reserved_purchase.refresh_from_db()
+
+    assert response.status_code == 400
+    assert response.data[0] == "A reserva expirou ou nao pode mais ser confirmada."
+    assert payment.status == Payment.Status.PENDING
+    assert reserved_purchase.status == Purchase.Status.EXPIRED
 
 
 @pytest.mark.django_db
