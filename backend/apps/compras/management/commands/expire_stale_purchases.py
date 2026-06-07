@@ -34,21 +34,8 @@ class Command(BaseCommand):
 
             for payment in pending_payments:
                 try:
-                    refreshed = refresh_payment_status(payment)
+                    refreshed = refresh_payment_status(payment, source="cron")
                     synced_payments += 1
-                    create_purchase_event(
-                        refreshed.purchase,
-                        event_type=PurchaseEvent.EventType.PAYMENT_CHECKED,
-                        source="cron",
-                        old_status=refreshed.purchase.status,
-                        new_status=refreshed.purchase.status,
-                        message="Pagamento pendente consultado pelo cron.",
-                        metadata={
-                            "payment_id": payment.id,
-                            "payment_provider": payment.provider,
-                            "payment_status": refreshed.status,
-                        },
-                    )
                     refreshed.purchase.refresh_from_db()
                     if refreshed.purchase.status == Purchase.Status.PAID:
                         confirmed_purchases += 1

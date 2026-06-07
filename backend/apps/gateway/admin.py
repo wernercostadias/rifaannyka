@@ -21,7 +21,7 @@ class PaymentAdmin(admin.ModelAdmin):
             if payment.provider != "mercadopago":
                 continue
             try:
-                refresh_payment_status(payment)
+                refresh_payment_status(payment, source="admin")
                 synced += 1
             except ValidationError as exc:
                 failed += 1

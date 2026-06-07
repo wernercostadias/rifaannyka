@@ -42,7 +42,7 @@ class PaymentViewSet(GenericViewSet):
 
     @action(detail=True, methods=["get"], url_path="status")
     def status_view(self, request, pk=None):
-        payment = refresh_payment_status(self._get_scoped_payment())
+        payment = refresh_payment_status(self._get_scoped_payment(), source="status_endpoint")
         return Response(
             {
                 "payment": PaymentSerializer(payment).data,

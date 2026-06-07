@@ -12,8 +12,8 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from apps.compras.models import Purchase
-from apps.compras.services import confirm_purchase_payment, expire_purchase
+from apps.compras.models import Purchase, PurchaseEvent
+from apps.compras.services import confirm_purchase_payment, create_purchase_event, expire_purchase
 
 from .models import Payment, PaymentWebhookLog
 
@@ -315,11 +315,11 @@ def create_payment(*, purchase: Purchase, provider: str = "local_pix", device_id
     return _create_local_pix_payment(purchase=purchase, provider=provider)
 
 
-def refresh_payment_status(payment: Payment) -> Payment:
+def refresh_payment_status(payment: Payment, *, source: str = "system") -> Payment:
     payment = Payment.objects.select_related("purchase").get(id=payment.id)
 
     if payment.provider == "mercadopago" and payment.status == Payment.Status.PENDING and payment.external_id:
-        _sync_mercadopago_order(payment.external_id)
+        _sync_mercadopago_order(payment.external_id, source=source)
         payment.refresh_from_db()
 
     if payment.status != Payment.Status.PAID:
@@ -368,6 +368,20 @@ def _mark_payment_as_paid(*, payment: Payment, payment_reference: str) -> bool:
     if payment.status == Payment.Status.PAID and payment.purchase.status == Purchase.Status.PAID:
         return True
     if payment.purchase.status != Purchase.Status.RESERVED:
+        create_purchase_event(
+            payment.purchase,
+            event_type=PurchaseEvent.EventType.SYNC_FAILED,
+            source="payment_sync",
+            old_status=payment.purchase.status,
+            new_status=payment.purchase.status,
+            message="Pagamento aprovado no provedor, mas a reserva ja nao estava mais ativa.",
+            metadata={
+                "payment_id": payment.id,
+                "provider": payment.provider,
+                "payment_reference": payment_reference,
+                "reason": "purchase_not_reserved",
+            },
+        )
         logger.warning(
             "Mercado Pago payment approved after reservation ended: payment_id=%s purchase=%s purchase_status=%s",
             payment.id,
@@ -387,6 +401,20 @@ def _mark_payment_as_paid(*, payment: Payment, payment_reference: str) -> bool:
             },
         )
     except ValidationError as exc:
+        create_purchase_event(
+            payment.purchase,
+            event_type=PurchaseEvent.EventType.SYNC_FAILED,
+            source="payment_sync",
+            old_status=payment.purchase.status,
+            new_status=payment.purchase.status,
+            message="Pagamento aprovado no provedor, mas falhou na confirmacao local.",
+            metadata={
+                "payment_id": payment.id,
+                "provider": payment.provider,
+                "payment_reference": payment_reference,
+                "reason": str(exc.detail),
+            },
+        )
         logger.warning(
             "Mercado Pago payment could not be confirmed locally: payment_id=%s purchase=%s reason=%s",
             payment.id,
@@ -428,7 +456,7 @@ def _find_mercadopago_payment(*, order_id: str, external_reference: str) -> Paym
     )
 
 
-def _sync_mercadopago_order(resource_id: str) -> bool:
+def _sync_mercadopago_order(resource_id: str, *, source: str = "system") -> bool:
     order_details = _mercadopago_request(method="GET", path=f"/v1/orders/{resource_id}")
     external_reference = str(order_details.get("external_reference") or "")
     if not external_reference:
@@ -442,6 +470,23 @@ def _sync_mercadopago_order(resource_id: str) -> bool:
     status = str(payment_data.get("status") or order_details.get("status") or "").lower()
     status_detail = str(payment_data.get("status_detail") or order_details.get("status_detail") or "").lower()
     payment_reference = str(payment_data.get("id") or resource_id)
+
+    create_purchase_event(
+        payment.purchase,
+        event_type=PurchaseEvent.EventType.PAYMENT_CHECKED,
+        source=source,
+        old_status=payment.purchase.status,
+        new_status=payment.purchase.status,
+        message="Status do pagamento consultado no Mercado Pago.",
+        metadata={
+            "payment_id": payment.id,
+            "provider": payment.provider,
+            "external_id": resource_id,
+            "payment_reference": payment_reference,
+            "payment_status": status,
+            "payment_status_detail": status_detail,
+        },
+    )
 
     if status in {"processed", "approved"} or status_detail == "accredited":
         return _mark_payment_as_paid(payment=payment, payment_reference=payment_reference)
@@ -477,6 +522,6 @@ def process_webhook(*, provider: str, payload: dict, headers: dict | None = None
 
     resource_id = str((payload.get("data") or {}).get("id") or payload.get("id") or "")
     if resource_id:
-        log.processed = _sync_mercadopago_order(resource_id)
+        log.processed = _sync_mercadopago_order(resource_id, source="webhook")
         log.save(update_fields=["processed", "updated_at"])
     return log

@@ -195,7 +195,7 @@ class ExpireStalePurchasesCommandTests(TestCase):
             status=Payment.Status.PENDING,
             external_id="ORD123",
         )
-        refresh_payment_status_mock.side_effect = lambda current_payment: current_payment
+        refresh_payment_status_mock.side_effect = lambda current_payment, source="system": current_payment
 
         output = StringIO()
         call_command("expire_stale_purchases", stdout=output)
@@ -232,7 +232,7 @@ class ExpireStalePurchasesCommandTests(TestCase):
             external_id="ORD456",
         )
 
-        def sync_as_paid(current_payment):
+        def sync_as_paid(current_payment, source="system"):
             current_payment.status = Payment.Status.PAID
             current_payment.paid_at = timezone.now()
             current_payment.save(update_fields=["status", "paid_at", "updated_at"])
@@ -254,12 +254,6 @@ class ExpireStalePurchasesCommandTests(TestCase):
             2,
         )
         self.assertIn("1 compras confirmadas", output.getvalue().lower())
-        self.assertTrue(
-            purchase.events.filter(
-                event_type=PurchaseEvent.EventType.PAYMENT_CHECKED,
-                source="cron",
-            ).exists()
-        )
         confirmed_event = purchase.events.get(event_type=PurchaseEvent.EventType.PAYMENT_CONFIRMED)
         self.assertEqual(confirmed_event.buyer_name, "Bruno Souza")
         self.assertEqual(confirmed_event.numbers_snapshot, [3, 4])
