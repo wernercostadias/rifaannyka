@@ -102,7 +102,7 @@ defineExpose({
 }
 
 .ticket-heading h2::before,
-.ticket-heading h2 > span::after {
+.ticket-heading h2::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -115,7 +115,7 @@ defineExpose({
   right: calc(100% + 18px);
 }
 
-.ticket-heading h2 > span::after {
+.ticket-heading h2::after {
   left: calc(100% + 18px);
 }
 
